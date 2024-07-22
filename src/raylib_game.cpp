@@ -13,12 +13,25 @@
  *
  ********************************************************************************************/
 
-#include "screens.cpp"
-#include "raylib_vector2.cpp"
-#include "raylib_vector3.cpp"
-#include "debug_text.cpp"
+#pragma once
 
 #include <cassert>
+
+#include "raylib.h"
+#include "raymath.h"
+
+#include "raylib_vector2.cpp"
+#include "raylib_vector3.cpp"
+
+#include "debug_text.cpp"
+
+#include "screens.cpp"
+
+#include "screen_gameplay.cpp"
+#include "screen_logo.cpp"
+#include "screen_options.cpp"
+#include "screen_title.cpp"
+#include "screen_ending.cpp"
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
@@ -354,7 +367,7 @@ static void UpdateDrawFrame() {
     if (onTransition)
         DrawTransition();
 
-    // DrawFPS(10, 10);
+    DrawFPS(10, 10);
 
     EndDrawing();
     //----------------------------------------------------------------------------------

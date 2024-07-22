@@ -44,10 +44,9 @@ static int  currentFPSValueIndex  = 0;
 static bool gizmosEnabled         = true;
 static bool unzoomedCameraEnabled = true;
 
-static int finishScreen = 0;
-
 static struct GameDataType {
-    Camera3D camera = {};
+    Camera3D camera       = {};
+    int      finishScreen = 0;
 } gdata;
 
 //----------------------------------------------------------------------------------
@@ -138,7 +137,7 @@ void InitGameplayScreen() {
     assert(CeilDivision(10, 4) == 3);
     // ------------------------------------------------------------
 
-    finishScreen = 0;
+    gdata.finishScreen = 0;
 }
 
 // Gameplay Screen Update logic.
@@ -147,7 +146,7 @@ void UpdateGameplayScreen() {
 
     // Press enter or tap to change to ENDING screen.
     if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP)) {
-        finishScreen = 1;
+        gdata.finishScreen = 1;
         PlaySound(fxCoin);
     }
 
@@ -200,5 +199,5 @@ void UnloadGameplayScreen() {}
 
 // Gameplay Screen should finish?
 int FinishGameplayScreen() {
-    return finishScreen;
+    return gdata.finishScreen;
 }

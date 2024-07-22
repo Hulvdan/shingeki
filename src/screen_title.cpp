@@ -28,8 +28,10 @@
 //----------------------------------------------------------------------------------
 // Module Variables Definition (local)
 //----------------------------------------------------------------------------------
-static int framesCounter = 0;
-static int finishScreen  = 0;
+static struct {
+    int framesCounter = 0;
+    int finishScreen  = 0;
+} titleData;
 
 //----------------------------------------------------------------------------------
 // Title Screen Functions Definition
@@ -38,8 +40,8 @@ static int finishScreen  = 0;
 // Title Screen Initialization logic
 void InitTitleScreen() {
     // TODO: Initialize TITLE screen variables here!
-    framesCounter = 0;
-    finishScreen  = 0;
+    titleData.framesCounter = 0;
+    titleData.finishScreen  = 0;
 }
 
 // Title Screen Update logic
@@ -48,8 +50,8 @@ void UpdateTitleScreen() {
 
     // Press enter or tap to change to GAMEPLAY screen
     if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP)) {
-        // finishScreen = 1;   // OPTIONS
-        finishScreen = 2;  // GAMEPLAY
+        // titleData.finishScreen = 1;   // OPTIONS
+        titleData.finishScreen = 2;  // GAMEPLAY
         PlaySound(fxCoin);
     }
 }
@@ -70,5 +72,5 @@ void UnloadTitleScreen() {
 
 // Title Screen should finish?
 int FinishTitleScreen() {
-    return finishScreen;
+    return titleData.finishScreen;
 }

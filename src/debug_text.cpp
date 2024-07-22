@@ -26,20 +26,22 @@
 //----------------------------------------------------------------------------------
 // Module Variables Definition (local).
 //----------------------------------------------------------------------------------
-static int lastDebugTextY = 0;
+static struct {
+    int lastDebugTextY = 0;
+} debugTextData;
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition.
 //----------------------------------------------------------------------------------
 void DebugTextReset() {
-    lastDebugTextY = 0;
+    debugTextData.lastDebugTextY = 0;
 }
 
-void BFDrawDebugText(const char* text) {
+void DebugTextDraw(const char* text) {
     const auto padding = 4;
     const auto height  = 20;
 
-    DrawText(text, padding, lastDebugTextY + padding, 20, RED);
+    DrawText(text, padding, debugTextData.lastDebugTextY + padding, 20, RED);
 
-    lastDebugTextY += height + padding;
+    debugTextData.lastDebugTextY += height + padding;
 }

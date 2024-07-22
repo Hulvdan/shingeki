@@ -230,7 +230,6 @@ def do_lint() -> None:
             "C:/Program Files/LLVM/bin/clang-tidy.exe"
             --use-color
             src\raylib_game.cpp
-            src\screen_gameplay.cpp
         """
         # Убираем абсолютный путь к проекту из выдачи линтинга.
         # Тут куча экранирования происходит, поэтому нужно дублировать обратные слеши.
@@ -241,7 +240,15 @@ def do_lint() -> None:
 
 
 def do_cmake_vs_files() -> None:
-    run_command(r"cmake -S . -B .cmake\vs17")
+    run_command(
+        r"""
+            cmake
+            -S .
+            -B .cmake\vs17
+        """
+        # -DCMAKE_UNITY_BUILD=ON
+        # -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
+    )
 
 
 def do_cmake_ninja_files() -> None:

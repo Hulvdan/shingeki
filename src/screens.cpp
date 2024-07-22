@@ -25,12 +25,6 @@
  *
  **********************************************************************************************/
 
-#ifndef SCREENS_H
-#define SCREENS_H
-
-#include "raylib_vector2.h"
-#include "raylib_vector3.h"
-
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
@@ -104,5 +98,3 @@ int  FinishEndingScreen();
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // SCREENS_H

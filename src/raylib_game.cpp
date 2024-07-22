@@ -13,8 +13,12 @@
  *
  ********************************************************************************************/
 
-#include "raylib.h"
-#include "global.h"  // NOTE: Declares global (extern) variables and screens functions
+#include "screens.cpp"
+#include "raylib_vector2.cpp"
+#include "raylib_vector3.cpp"
+#include "debug_text.cpp"
+
+#include <cassert>
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>

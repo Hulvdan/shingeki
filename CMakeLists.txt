@@ -27,7 +27,6 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
 endif()
 
 # Our Project
-# add_executable(${PROJECT_NAME})
 add_executable(${PROJECT_NAME})
 add_subdirectory(src)
 

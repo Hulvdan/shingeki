@@ -2,8 +2,6 @@
  *
  *   raylib - Advance Game template
  *
- *   Title Screen Functions Definitions (Init, Update, Draw, Unload)
- *
  *   Copyright (c) 2014-2022 Ramon Santamaria (@raysan5)
  *
  *   This software is provided "as-is", without any express or implied warranty. In no
@@ -26,51 +24,24 @@
  **********************************************************************************************/
 
 //----------------------------------------------------------------------------------
-// Module Variables Definition (local)
+// Module Variables Definition (local).
 //----------------------------------------------------------------------------------
 static struct {
-    int framesCounter = 0;
-    int finishScreen  = 0;
-} titleData;
+    int lastDebugTextY = 0;
+} debugTextData;
 
 //----------------------------------------------------------------------------------
-// Title Screen Functions Definition
+// Module Functions Definition.
 //----------------------------------------------------------------------------------
-
-// Title Screen Initialization logic
-void InitTitleScreen() {
-    // TODO: Initialize TITLE screen variables here!
-    titleData.framesCounter = 0;
-    titleData.finishScreen  = 0;
+void DebugTextReset() {
+    debugTextData.lastDebugTextY = 0;
 }
 
-// Title Screen Update logic
-void UpdateTitleScreen() {
-    // TODO: Update TITLE screen variables here!
+void DebugTextDraw(const char* text) {
+    const auto padding = 4;
+    const auto height  = 20;
 
-    // Press enter or tap to change to GAMEPLAY screen
-    if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP)) {
-        // titleData.finishScreen = 1;   // OPTIONS
-        titleData.finishScreen = 2;  // GAMEPLAY
-        PlaySound(fxCoin);
-    }
-}
+    DrawText(text, padding, debugTextData.lastDebugTextY + padding, 20, RED);
 
-// Title Screen Draw logic
-void DrawTitleScreen() {
-    // TODO: Draw TITLE screen here!
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), GREEN);
-    Vector2 pos = {20, 10};
-    DrawTextEx(font, "TITLE SCREEN", pos, font.baseSize * 3.0f, 4, DARKGREEN);
-    DrawText("PRESS ENTER or TAP to JUMP to GAMEPLAY SCREEN", 120, 220, 20, DARKGREEN);
-}
-
-// Title Screen Unload logic
-void UnloadTitleScreen() {
-    // TODO: Unload TITLE screen variables here!
-}
-
-// Title Screen should finish?
-int FinishTitleScreen() {
-    return titleData.finishScreen;
+    debugTextData.lastDebugTextY += height + padding;
 }

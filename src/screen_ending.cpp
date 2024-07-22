@@ -25,14 +25,13 @@
  *
  **********************************************************************************************/
 
-#include "raylib.h"
-#include "global.h"
-
 //----------------------------------------------------------------------------------
 // Module Variables Definition (local)
 //----------------------------------------------------------------------------------
-static int framesCounter = 0;
-static int finishScreen  = 0;
+static struct {
+    int framesCounter = 0;
+    int finishScreen  = 0;
+} endingData;
 
 //----------------------------------------------------------------------------------
 // Ending Screen Functions Definition
@@ -41,8 +40,8 @@ static int finishScreen  = 0;
 // Ending Screen Initialization logic
 void InitEndingScreen() {
     // TODO: Initialize ENDING screen variables here!
-    framesCounter = 0;
-    finishScreen  = 0;
+    endingData.framesCounter = 0;
+    endingData.finishScreen  = 0;
 }
 
 // Ending Screen Update logic
@@ -51,7 +50,7 @@ void UpdateEndingScreen() {
 
     // Press enter or tap to return to TITLE screen
     if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP)) {
-        finishScreen = 1;
+        endingData.finishScreen = 1;
         PlaySound(fxCoin);
     }
 }
@@ -73,5 +72,5 @@ void UnloadEndingScreen() {
 
 // Ending Screen should finish?
 int FinishEndingScreen() {
-    return finishScreen;
+    return endingData.finishScreen;
 }

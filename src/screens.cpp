@@ -2,7 +2,7 @@
  *
  *   raylib - Advance Game template
  *
- *   Title Screen Functions Definitions (Init, Update, Draw, Unload)
+ *   Screens Functions Declarations (Init, Update, Draw, Unload)
  *
  *   Copyright (c) 2014-2022 Ramon Santamaria (@raysan5)
  *
@@ -26,51 +26,22 @@
  **********************************************************************************************/
 
 //----------------------------------------------------------------------------------
-// Module Variables Definition (local)
+// Types and Structures Definition
 //----------------------------------------------------------------------------------
-static struct {
-    int framesCounter = 0;
-    int finishScreen  = 0;
-} titleData;
+enum class GameScreen {
+    UNKNOWN = -2,
+    NOT_SET = -1,
+    LOGO    = 0,
+    TITLE,
+    OPTIONS,
+    GAMEPLAY,
+    ENDING,
+};
 
 //----------------------------------------------------------------------------------
-// Title Screen Functions Definition
+// Global Variables Declaration (shared by several modules)
 //----------------------------------------------------------------------------------
-
-// Title Screen Initialization logic
-void InitTitleScreen() {
-    // TODO: Initialize TITLE screen variables here!
-    titleData.framesCounter = 0;
-    titleData.finishScreen  = 0;
-}
-
-// Title Screen Update logic
-void UpdateTitleScreen() {
-    // TODO: Update TITLE screen variables here!
-
-    // Press enter or tap to change to GAMEPLAY screen
-    if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP)) {
-        // titleData.finishScreen = 1;   // OPTIONS
-        titleData.finishScreen = 2;  // GAMEPLAY
-        PlaySound(fxCoin);
-    }
-}
-
-// Title Screen Draw logic
-void DrawTitleScreen() {
-    // TODO: Draw TITLE screen here!
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), GREEN);
-    Vector2 pos = {20, 10};
-    DrawTextEx(font, "TITLE SCREEN", pos, font.baseSize * 3.0f, 4, DARKGREEN);
-    DrawText("PRESS ENTER or TAP to JUMP to GAMEPLAY SCREEN", 120, 220, 20, DARKGREEN);
-}
-
-// Title Screen Unload logic
-void UnloadTitleScreen() {
-    // TODO: Unload TITLE screen variables here!
-}
-
-// Title Screen should finish?
-int FinishTitleScreen() {
-    return titleData.finishScreen;
-}
+extern GameScreen currentScreen;
+extern Font       font;
+extern Music      music;
+extern Sound      fxCoin;

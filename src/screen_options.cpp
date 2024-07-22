@@ -25,14 +25,13 @@
  *
  **********************************************************************************************/
 
-#include "raylib.h"
-#include "global.h"
-
 //----------------------------------------------------------------------------------
 // Module Variables Definition (local)
 //----------------------------------------------------------------------------------
-static int framesCounter = 0;
-static int finishScreen  = 0;
+static struct {
+    int framesCounter = 0;
+    int finishScreen  = 0;
+} optionsData;
 
 //----------------------------------------------------------------------------------
 // Options Screen Functions Definition
@@ -41,8 +40,8 @@ static int finishScreen  = 0;
 // Options Screen Initialization logic
 void InitOptionsScreen() {
     // TODO: Initialize OPTIONS screen variables here!
-    framesCounter = 0;
-    finishScreen  = 0;
+    optionsData.framesCounter = 0;
+    optionsData.finishScreen  = 0;
 }
 
 // Options Screen Update logic
@@ -62,5 +61,5 @@ void UnloadOptionsScreen() {
 
 // Options Screen should finish?
 int FinishOptionsScreen() {
-    return finishScreen;
+    return optionsData.finishScreen;
 }

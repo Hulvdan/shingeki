@@ -83,3 +83,10 @@ Vector3& operator/=(Vector3& a, const float scale) {
     a.z /= scale;
     return a;
 }
+
+constexpr Vector3 Vector3Up       = Vector3(0, 1, 0);
+constexpr Vector3 Vector3Down     = Vector3(0, -1, 0);
+constexpr Vector3 Vector3Right    = Vector3(1, 0, 0);
+constexpr Vector3 Vector3Left     = Vector3(-1, 0, 0);
+constexpr Vector3 Vector3Forward  = Vector3(0, 0, 1);
+constexpr Vector3 Vector3Backward = Vector3(0, 0, -1);

@@ -32,8 +32,8 @@
 // Module Constants Definition.
 //----------------------------------------------------------------------------------
 
-#define REVOLUTIONS2RAD (3.14159265358979f)
-#define REVOLUTIONS2DEG (3.14159265358979f * (RAD2DEG))
+#define REVOLUTIONS2RAD (PI)
+#define REVOLUTIONS2DEG ((PI) * (RAD2DEG))
 
 static constexpr int fpsValues[] = {60, 20, 40};
 
@@ -45,8 +45,10 @@ static bool gizmosEnabled         = true;
 static bool unzoomedCameraEnabled = true;
 
 static struct GameDataType {
-    Camera3D camera       = {};
-    int      finishScreen = 0;
+    int finishScreen = 0;
+
+    Camera3D camera         = {};
+    Vector3  playerPosition = {};
 } gdata;
 
 //----------------------------------------------------------------------------------
@@ -138,6 +140,14 @@ void InitGameplayScreen() {
     // ------------------------------------------------------------
 
     gdata.finishScreen = 0;
+
+    gdata.camera.position   = Vector3{0.0f, 10.0f, 10.0f};
+    gdata.camera.target     = Vector3{0.0f, 0.0f, 0.0f};
+    gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
+    gdata.camera.fovy       = 45.0f;
+    gdata.camera.projection = CAMERA_PERSPECTIVE;
+
+    gdata.playerPosition = Vector3{0.0f, 0.0f, 0.0f};
 }
 
 // Gameplay Screen Update logic.
@@ -157,6 +167,27 @@ void UpdateGameplayScreen() {
                 currentFPSValueIndex = 0;
             SetTargetFPS(fpsValues[currentFPSValueIndex]);
         }
+    }
+
+    {  // Enabling drawing gizmos.
+        bool  move      = true;
+        float direction = 0;
+
+        if (IsKeyDown(KEY_A))
+            direction = PI;
+        else if (IsKeyDown(KEY_D))
+            direction = 0;
+        else if (IsKeyDown(KEY_W))
+            direction = 1.0f * PI / 2.0f;
+        else if (IsKeyDown(KEY_S))
+            direction = 3.0f * PI / 2.0f;
+        else
+            move = false;
+
+        if (move)
+            gdata.playerPosition += Vector3RotateByAxisAngle(
+                Vector3(dt, 0, 0), Vector3(0, 1, 0), direction
+            );
     }
 
     {  // Enabling drawing gizmos.
@@ -183,6 +214,11 @@ void DrawGameplayScreen() {
     auto& camera = gdata.camera;
 
     BeginMode3D(camera);
+    {  // Drawing world.
+        DrawCube(gdata.playerPosition + Vector3Up, 2.0f, 2.0f, 2.0f, GREEN);
+        DrawCubeWires(gdata.playerPosition + Vector3Up, 2.0f, 2.0f, 2.0f, MAROON);
+        DrawGrid(100, 1.0f);
+    }
     if (gizmosEnabled) {
     }
     EndMode3D();

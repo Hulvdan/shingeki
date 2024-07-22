@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <cassert>
+#include "assert.h"
 
 #include "raylib.h"
 #include "raymath.h"
@@ -367,7 +367,7 @@ static void UpdateDrawFrame() {
     if (onTransition)
         DrawTransition();
 
-    DrawFPS(10, 10);
+    // DrawFPS(10, 10);
 
     EndDrawing();
     //----------------------------------------------------------------------------------

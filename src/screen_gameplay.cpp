@@ -112,6 +112,15 @@ void DrawRope(Vector3 from, Vector3 to) {
         Vector3One(),
         YELLOW
     );
+    if (gdata.gizmosEnabled)
+        DrawModelWiresEx(
+            model,
+            from,
+            axis,
+            (PI / 2 - Vector3Angle(cross2, cross)) * RAD2DEG,
+            Vector3One(),
+            MAROON
+        );
     UnloadModel(model);
 }
 
@@ -450,15 +459,12 @@ void DrawGameplayScreen() {
         if (gplayer.collided) {
             Vector3 from = gplayer.position;
             // Смещаем в сторону.
-            from += Vector3Negate(HorizontalAxisOf(gplayer.lookingDirection) * 2.0f);
+            from += HorizontalAxisOf(gplayer.lookingDirection) * 2.0f;
             // Смещаем вниз.
             from -= Vector3Up * 0.5f;
 
             DrawRope(from, gplayer.lookingAtCollision);
         }
-
-        if (gdata.gizmosEnabled && gplayer.collided)
-            DrawLine3D(gplayer.position, gplayer.lookingAtCollision, WHITE);
     }
     EndMode3D();
 

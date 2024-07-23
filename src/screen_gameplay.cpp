@@ -75,6 +75,8 @@ void InitGameplayScreen() {
     gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
     gdata.camera.fovy       = 45.0f;
     gdata.camera.projection = CAMERA_PERSPECTIVE;
+
+    DisableCursor();
 }
 
 // Gameplay Screen Update logic.
@@ -189,7 +191,9 @@ void DrawGameplayScreen() {
 }
 
 // Gameplay Screen Unload logic.
-void UnloadGameplayScreen() {}
+void UnloadGameplayScreen() {
+    EnableCursor();
+}
 
 // Gameplay Screen should finish?
 int FinishGameplayScreen() {

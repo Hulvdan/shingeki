@@ -47,6 +47,10 @@ globalVar struct {
     bool    collided           = false;
     Vector3 lookingAtCollision = {};
 
+    bool    ropeActivated = false;
+    float   ropeLength    = 0;
+    Vector3 ropePos       = {};
+
     const float speed       = 10.0f;  // m / s
     const float jumpImpulse = 80.0f;  // m
     const float gravity     = -9.8f;  // m / s / s
@@ -137,7 +141,9 @@ void SwitchState(PlayerStates state) {
 
 // Grounded functions
 //----------------------------------------------------------------------------------
-PlayerState_OnEnter_Function(Grounded_OnEnter) {}
+PlayerState_OnEnter_Function(Grounded_OnEnter) {
+    gplayer.ropeActivated = false;
+}
 
 PlayerState_OnExit_Function(Grounded_OnExit) {}
 
@@ -255,6 +261,20 @@ PlayerState_Update_Function(Airborne_Update) {
                                 * gplayer.speed;
 
             gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
+        }
+    }
+
+    if (!gplayer.ropeActivated) {
+        if (IsMouseButtonPressed(0)) {
+            gplayer.ropeActivated = true;
+            gplayer.ropePos       = gplayer.lookingAtCollision;
+            gplayer.ropeLength    = Vector3Distance(gplayer.ropePos, gplayer.position);
+        }
+    }
+
+    if (gplayer.ropeActivated) {
+        if (!IsMouseButtonDown(0)) {
+            gplayer.ropeActivated = false;
         }
     }
 
@@ -440,35 +460,40 @@ void DrawGameplayScreen() {
         DrawGrid(100, 1.0f);
     }
     {  // Drawing ropes.
-        if (gplayer.collided) {
+        if (gplayer.ropeActivated) {
             Vector3 from = gplayer.position;
             // Смещаем в сторону.
             from += HorizontalAxisOf(gplayer.lookingDirection) * 2.0f;
             // Смещаем вниз.
             from -= Vector3Up * 0.5f;
 
-            DrawRope(from, gplayer.lookingAtCollision);
+            DrawRope(from, gplayer.ropePos);
         }
     }
     EndMode3D();
 
     {  // Cross.
-        const int  crossSize  = 20;
-        const auto crossColor = WHITE;
+        const int size = 20;
+
+        auto color = WHITE;
+        if (gplayer.collided)
+            color = GREEN;
+        if (gplayer.ropeActivated)
+            color = RED;
 
         DrawLine(
             screenWidth / 2,
-            (screenHeight - crossSize) / 2,
+            (screenHeight - size) / 2,
             screenWidth / 2,
-            (screenHeight + crossSize) / 2,
-            crossColor
+            (screenHeight + size) / 2,
+            color
         );
         DrawLine(
-            (screenWidth - crossSize) / 2,
+            (screenWidth - size) / 2,
             screenHeight / 2,
-            (screenWidth + crossSize) / 2,
+            (screenWidth + size) / 2,
             screenHeight / 2,
-            crossColor
+            color
         );
     }
 

@@ -178,6 +178,10 @@ void DrawGameplayScreen() {
             {{19, 1, 13}, {2, 2, 2}, MAGENTA},
             {{6, 3, 13}, {2, 6, 2}, MAGENTA},
             {{11, 6, 16}, {1, 12, 1}, GRAY},
+
+            {{-25, 8, 11}, {2, 16, 2}, YELLOW},
+            {{-25, 12, 16}, {2, 1, 8}, YELLOW},
+            {{-25, 8, 21}, {2, 16, 2}, YELLOW},
         };
 
         int cubesCount = sizeof(cubes) / sizeof(cubes[0]);

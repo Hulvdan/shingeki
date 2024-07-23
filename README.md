@@ -74,6 +74,7 @@ Keyboard:
 ### Screenshots
 
 ![](screenshots/screenshot001.png)
+![](screenshots/screenshot002.png)
 
 ### Developers
 

@@ -26,7 +26,7 @@
 //----------------------------------------------------------------------------------
 // Module Variables Definition (local).
 //----------------------------------------------------------------------------------
-static struct {
+globalVar struct {
     int lastDebugTextY = 0;
 } debugTextData;
 

@@ -1,18 +1,3 @@
-/*******************************************************************************************
- *
- *   raylib game template
- *
- *   <Game title>
- *   <Game description>
- *
- *   This game has been created using raylib (www.raylib.com)
- *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for
- *details)
- *
- *   Copyright (c) 2021 Ramon Santamaria (@raysan5)
- *
- ********************************************************************************************/
-
 #pragma once
 
 #include "assert.h"
@@ -23,62 +8,47 @@
 #include "raylib_vector2.cpp"
 #include "raylib_vector3.cpp"
 
+#include "base.cpp"
+#include "math.cpp"
+
 #include "debug_text.cpp"
 
 #include "screens.cpp"
-
 #include "screen_gameplay.cpp"
+#include "screen_ending.cpp"
 #include "screen_logo.cpp"
 #include "screen_options.cpp"
 #include "screen_title.cpp"
-#include "screen_ending.cpp"
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
 
-//----------------------------------------------------------------------------------
-// Shared Variables Definition (global)
-// NOTE: Those variables are shared between modules through global.h
-//----------------------------------------------------------------------------------
-GameScreen currentScreen = GameScreen::UNKNOWN;
-Font       font{};
-Music      music{};
-Sound      fxCoin{};
-
-//----------------------------------------------------------------------------------
-// Local Variables Definition (local to this module)
-//----------------------------------------------------------------------------------
-
-// Required variables to manage screen transitions (fade-in, fade-out)
-static float      transAlpha      = 0.0f;
-static bool       onTransition    = false;
-static bool       transFadeOut    = false;
-static GameScreen transFromScreen = GameScreen::NOT_SET;
-static GameScreen transToScreen   = GameScreen::NOT_SET;
+globalVar float      transAlpha      = 0.0f;
+globalVar bool       onTransition    = false;
+globalVar bool       transFadeOut    = false;
+globalVar GameScreen transFromScreen = GameScreen::NOT_SET;
+globalVar GameScreen transToScreen   = GameScreen::NOT_SET;
 
 //----------------------------------------------------------------------------------
 // Local Functions Declaration
 //----------------------------------------------------------------------------------
 
 // Change to screen, no transition effect
-// static void ChangeToScreen(GameScreen screen);
+// void ChangeToScreen(GameScreen screen);
 
 // Request transition to next screen
-static void TransitionToScreen(GameScreen screen);
+void TransitionToScreen(GameScreen screen);
 
 // Update transition effect
-static void UpdateTransition();
+void UpdateTransition();
 
 // Draw transition effect (full-screen rectangle)
-static void DrawTransition();
+void DrawTransition();
 
 // Update and draw one frame
-static void UpdateDrawFrame();
+void UpdateDrawFrame();
 
-//----------------------------------------------------------------------------------
-// Main entry point
-//----------------------------------------------------------------------------------
 int main() {
     // Initialization
     //---------------------------------------------------------
@@ -156,7 +126,7 @@ int main() {
 // Module specific Functions Definition
 //----------------------------------------------------------------------------------
 // Change to next screen, no transition
-// static void ChangeToScreen(GameScreen screen) {
+// void ChangeToScreen(GameScreen screen) {
 //     // Unload current screen
 //     switch (currentScreen) {
 //     case GameScreen::LOGO:
@@ -197,16 +167,17 @@ int main() {
 // }
 
 // Request transition to next screen
-static void TransitionToScreen(GameScreen screen) {
+void TransitionToScreen(GameScreen screen) {
     onTransition    = true;
     transFadeOut    = false;
     transFromScreen = currentScreen;
     transToScreen   = screen;
     transAlpha      = 0.0f;
+    PlaySound(fxCoin);
 }
 
 // Update transition effect (fade-in, fade-out)
-static void UpdateTransition() {
+void UpdateTransition() {
     if (!transFadeOut) {
         transAlpha += 0.05f;
 
@@ -276,12 +247,12 @@ static void UpdateTransition() {
 }
 
 // Draw transition effect (full-screen rectangle)
-static void DrawTransition() {
+void DrawTransition() {
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, transAlpha));
 }
 
 // Update and draw game frame
-static void UpdateDrawFrame() {
+void UpdateDrawFrame() {
     // Update
     //----------------------------------------------------------------------------------
     UpdateMusicStream(music);  // NOTE: Music keeps playing between screens

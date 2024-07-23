@@ -4,6 +4,7 @@
 #include "raylib.h"
 #include "raymath.h"
 
+// NOLINTBEGIN(bugprone-suspicious-include)
 #include "raylib_vector2.cpp"
 #include "raylib_vector3.cpp"
 
@@ -18,6 +19,7 @@
 #include "screen_logo.cpp"
 #include "screen_options.cpp"
 #include "screen_title.cpp"
+// NOLINTEND(bugprone-suspicious-include)
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
@@ -111,6 +113,8 @@ int main() {
     default:
         break;
     }
+
+    free(arena.base);
 
     // Unload global data loaded
     UnloadFont(font);

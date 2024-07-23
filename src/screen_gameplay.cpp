@@ -1,8 +1,6 @@
 static constexpr int fpsValues[] = {60, 20, 40};
 
-//----------------------------------------------------------------------------------
-// Module Variables Definition (local).
-//----------------------------------------------------------------------------------
+struct PlayerState;
 
 globalVar struct {
     int  currentFPSValueIndex = 0;
@@ -11,27 +9,27 @@ globalVar struct {
     int finishScreen = 0;
 
     Camera3D camera = {};
+
+    PlayerState* states = nullptr;
 } gdata;
 
 globalVar struct {
-    bool isGrounded;
+    float   rotationY          = 0;
+    float   rotationHorizontal = 0;
+    Vector3 lookingDirection   = {};
 
-    float   rotationY;
-    float   rotationHorizontal;
-    Vector3 lookingDirection;
+    Vector3 position = {0.0f, 0.0f, 10.0f};
+    Vector3 velocity = {};
 
-    Vector3 playerPosition = {0.0f, 2.0f, 10.0f};
+    PlayerState* currentState = nullptr;
 
-    const float playerSpeed = 10.0f;
+    const float Speed       = 10.0f;  // m / s
+    const float JumpImpulse = 80.0f;  // m
+    const float Gravity     = -9.8f;  // m / s / s
+    const float Mass        = 10.0f;  // kg
+
+    const Vector3 RopesOffset = {0.2f, 0.0f, 0.0f};
 } gplayer;
-
-//----------------------------------------------------------------------------------
-// Helper Functions Definition.
-//----------------------------------------------------------------------------------
-
-Vector2 GetRectangleSize(Rectangle rect) {
-    return {rect.width, rect.height};
-}
 
 //----------------------------------------------------------------------------------
 // Gameplay Functions Definition.
@@ -55,54 +53,45 @@ Vector2 GetPlayerMovementControlVector() {
     return result;
 }
 
-//----------------------------------------------------------------------------------
-// Gameplay Screen Functions Definition.
-//----------------------------------------------------------------------------------
-
-// Gameplay Screen Initialization logic.
-void InitGameplayScreen() {
-    // Tests
-    // ------------------------------------------------------------
-    assert(Floor(0, 20) == 0);
-    assert(Floor(1, 20) == 0);
-    assert(Floor(-1, 20) == -20);
-    assert(Floor(20, 20) == 20);
-    assert(Floor(21, 20) == 20);
-    assert(CeilDivision(10, 1) == 10);
-    assert(CeilDivision(10, 5) == 2);
-    assert(CeilDivision(10, 6) == 2);
-    assert(CeilDivision(10, 4) == 3);
-    // ------------------------------------------------------------
-
-    gdata.finishScreen = 0;
-
-    gdata.camera.target     = Vector3{0.0f, 0.0f, 0.0f};
-    gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
-    gdata.camera.fovy       = 45.0f;
-    gdata.camera.projection = CAMERA_PERSPECTIVE;
-
-    DisableCursor();
+Vector3 ApplyImpulse(Vector3 direction, float mass, float forceValue) {
+    return direction * (forceValue / mass);
 }
 
-// Gameplay Screen Update logic.
-void UpdateGameplayScreen() {
-    auto dt = GetFrameTime();
+//----------------------------------------------------------------------------------
+// Player State Machine.
+//----------------------------------------------------------------------------------
 
-    // Press enter or tap to change to ENDING screen.
-    if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
-        gdata.finishScreen = 1;
+enum class PlayerStates {
+    GROUNDED = 0,  // good movement control
+    AIRBORNE,      // air control, movement is not instant, can't jump again
+};
 
-    {  // Controlling FPS.
-        if (IsKeyPressed(KEY_F1)) {
-            gdata.currentFPSValueIndex++;
-            if (gdata.currentFPSValueIndex
-                >= sizeof(fpsValues) / sizeof(gdata.currentFPSValueIndex))
-                gdata.currentFPSValueIndex = 0;
-            SetTargetFPS(fpsValues[gdata.currentFPSValueIndex]);
-        }
-    }
+#define PlayerState_OnEnter_Function(name_) void name_()
+#define PlayerState_OnExit_Function(name_) void name_()
+#define PlayerState_Update_Function(name_) void name_(float dt)
 
-    {  // Camera rotation.
+struct PlayerState {
+    PlayerState_OnEnter_Function((*OnEnter));
+    PlayerState_OnExit_Function((*OnExit));
+    PlayerState_Update_Function((*Update));
+};
+
+void SwitchState(PlayerStates state) {
+    assert(gdata.states != nullptr);
+
+    gplayer.currentState->OnExit();
+    gplayer.currentState = gdata.states + (int)state;
+    gplayer.currentState->OnEnter();
+}
+
+// Grounded functions
+//----------------------------------------------------------------------------------
+PlayerState_OnEnter_Function(Grounded_OnEnter) {}
+
+PlayerState_OnExit_Function(Grounded_OnExit) {}
+
+PlayerState_Update_Function(Grounded_Update) {
+    {  // Player camera rotation.
         const float sensitivity = 1.0f / 300.0f;
 
         const auto delta = GetMouseDelta();
@@ -130,7 +119,10 @@ void UpdateGameplayScreen() {
         gplayer.lookingDirection = direction;
     }
 
-    {  // Player Movement.
+    {  // Player movement direction calculation.
+        gplayer.velocity.x = 0;
+        gplayer.velocity.z = 0;
+
         const Vector2 lookingHorizontalDirection
             = {gplayer.lookingDirection.x, gplayer.lookingDirection.z};
 
@@ -140,9 +132,120 @@ void UpdateGameplayScreen() {
             const auto angle = atan2f(controlVector.y, controlVector.x);
 
             const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 + angle)
-                                * (dt * gplayer.playerSpeed);
+                                * gplayer.Speed;
 
-            gplayer.playerPosition += Vector3(dHoriz.x, 0, dHoriz.y);
+            gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
+        }
+    }
+
+    {  // Jumping.
+        if (IsKeyPressed(KEY_SPACE)) {
+            gplayer.velocity
+                += ApplyImpulse(Vector3Up, gplayer.Mass, gplayer.JumpImpulse);
+
+            SwitchState(PlayerStates::AIRBORNE);
+        }
+    }
+
+    {  // Movement.
+        gplayer.position += gplayer.velocity * dt;
+    }
+}
+
+// Airborne functions
+//----------------------------------------------------------------------------------
+PlayerState_OnEnter_Function(Airborne_OnEnter) {}
+
+PlayerState_OnExit_Function(Airborne_OnExit) {}
+
+PlayerState_Update_Function(Airborne_Update) {
+    {  // Gravity.
+        gplayer.velocity.y += dt * gplayer.Gravity;
+    }
+
+    {  // Movement.
+        gplayer.position += gplayer.velocity * dt;
+    }
+
+    {
+        if (gplayer.position.y < 0) {
+            gplayer.position.y = 0;
+
+            if (gplayer.velocity.y < 0) {
+                gplayer.velocity.y = 0;
+                SwitchState(PlayerStates::GROUNDED);
+            }
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------
+// Helper Functions Definition.
+//----------------------------------------------------------------------------------
+Vector2 GetRectangleSize(Rectangle rect) {
+    return {rect.width, rect.height};
+}
+
+//----------------------------------------------------------------------------------
+// Gameplay Screen Functions Definition.
+//----------------------------------------------------------------------------------
+
+// Gameplay Screen Initialization logic.
+void InitGameplayScreen(Arena& arena) {
+    // Global Variables Initialization
+    // ------------------------------------------------------------
+    if (gdata.states == nullptr) {
+        auto& states = gdata.states;
+        states       = AllocateArray(arena, PlayerState, 2);
+
+        states[(int)PlayerStates::GROUNDED]
+            = {Grounded_OnEnter, Grounded_OnExit, Grounded_Update};
+        states[(int)PlayerStates::AIRBORNE]
+            = {Airborne_OnEnter, Airborne_OnExit, Airborne_Update};
+    }
+    if (gplayer.currentState == nullptr)
+        gplayer.currentState = gdata.states + (int)PlayerStates::GROUNDED;
+
+    // ------------------------------------------------------------
+
+    // Tests
+    // ------------------------------------------------------------
+    assert(Floor(0, 20) == 0);
+    assert(Floor(1, 20) == 0);
+    assert(Floor(-1, 20) == -20);
+    assert(Floor(20, 20) == 20);
+    assert(Floor(21, 20) == 20);
+    assert(CeilDivision(10, 1) == 10);
+    assert(CeilDivision(10, 5) == 2);
+    assert(CeilDivision(10, 6) == 2);
+    assert(CeilDivision(10, 4) == 3);
+    // ------------------------------------------------------------
+
+    gdata.finishScreen = 0;
+
+    gdata.camera.target     = Vector3{0.0f, 0.0f, 0.0f};
+    gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
+    gdata.camera.fovy       = 45.0f;
+    gdata.camera.projection = CAMERA_PERSPECTIVE;
+
+    DisableCursor();
+}
+
+// Gameplay Screen Update logic.
+void UpdateGameplayScreen() {
+    auto dt = GetFrameTime();
+
+    // // Press enter or tap to change to ENDING screen.
+    // if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
+    //     gdata.finishScreen = 1;
+
+    {  // Controlling FPS.
+        if (IsKeyPressed(KEY_F1)) {
+            gdata.currentFPSValueIndex++;
+            if (gdata.currentFPSValueIndex
+                >= sizeof(fpsValues) / sizeof(gdata.currentFPSValueIndex))
+                gdata.currentFPSValueIndex = 0;
+            SetTargetFPS(fpsValues[gdata.currentFPSValueIndex]);
         }
     }
 
@@ -150,6 +253,8 @@ void UpdateGameplayScreen() {
         if (IsKeyPressed(KEY_F2))
             gdata.gizmosEnabled = !gdata.gizmosEnabled;
     }
+
+    gplayer.currentState->Update(dt);
 }
 
 // Gameplay Screen Draw logic.
@@ -163,11 +268,10 @@ void DrawGameplayScreen() {
     DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
 
     auto& camera    = gdata.camera;
-    camera.position = gplayer.playerPosition;
+    camera.position = gplayer.position + Vector3Up * 2.0f;
     camera.target   = camera.position + gplayer.lookingDirection * 100.0f;
 
     BeginMode3D(camera);
-
     {  // Drawing world.
         struct {
             Vector3 pos;
@@ -199,14 +303,22 @@ void DrawGameplayScreen() {
             DrawGrid(100, 1.0f);
         }
     }
-    if (gdata.gizmosEnabled) {
-    }
     EndMode3D();
 
     DebugTextDraw(
         TextFormat("FPS: %i (press F1 to change)", fpsValues[gdata.currentFPSValueIndex])
     );
     DebugTextDraw(TextFormat("Toggle gizmos - F2"));
+    DebugTextDraw("Toggle gizmos - F2");
+    DebugTextDraw(TextFormat(
+        "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y, gplayer.position.z
+    ));
+    DebugTextDraw(TextFormat(
+        "look %.2f %.2f %.2f",
+        gplayer.lookingDirection.x,
+        gplayer.lookingDirection.y,
+        gplayer.lookingDirection.z
+    ));
 }
 
 // Gameplay Screen Unload logic.

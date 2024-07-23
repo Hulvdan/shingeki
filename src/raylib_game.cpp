@@ -1,6 +1,5 @@
-#pragma once
-
 #include "assert.h"
+#include <memory>
 
 #include "raylib.h"
 #include "raymath.h"
@@ -10,7 +9,7 @@
 
 #include "base.cpp"
 #include "math.cpp"
-
+#include "memory_arena.cpp"
 #include "debug_text.cpp"
 
 #include "screens.cpp"
@@ -47,7 +46,7 @@ void UpdateTransition();
 void DrawTransition();
 
 // Update and draw one frame
-void UpdateDrawFrame();
+void UpdateDrawFrame(Arena& arena);
 
 int main() {
     // Initialization
@@ -69,13 +68,17 @@ int main() {
     SetMusicVolume(music, 1.0f);
     PlayMusicStream(music);
 
+    Arena arena = {};
+    arena.size  = 4096;
+    arena.base  = rcast<u8*>(malloc(arena.size));
+
     // Setup and init first screen
     // currentScreen = GameScreen::TITLE;
     // currentScreen = GameScreen::LOGO;
     currentScreen = GameScreen::GAMEPLAY;
     // InitLogoScreen();
     // InitTitleScreen();
-    InitGameplayScreen();
+    InitGameplayScreen(arena);
 
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
@@ -85,9 +88,8 @@ int main() {
 
     // Main game loop
     while (!WindowShouldClose())  // Detect window close button or ESC key
-    {
-        UpdateDrawFrame();
-    }
+        UpdateDrawFrame(arena);
+
 #endif
 
     // De-Initialization
@@ -178,7 +180,7 @@ void TransitionToScreen(GameScreen screen) {
 }
 
 // Update transition effect (fade-in, fade-out)
-void UpdateTransition() {
+void UpdateTransition(Arena& arena) {
     if (!transFadeOut) {
         transAlpha += 0.05f;
 
@@ -218,7 +220,7 @@ void UpdateTransition() {
                 InitTitleScreen();
                 break;
             case GameScreen::GAMEPLAY:
-                InitGameplayScreen();
+                InitGameplayScreen(arena);
                 break;
             case GameScreen::ENDING:
                 InitEndingScreen();
@@ -253,7 +255,7 @@ void DrawTransition() {
 }
 
 // Update and draw game frame
-void UpdateDrawFrame() {
+void UpdateDrawFrame(Arena& arena) {
     // Update
     //----------------------------------------------------------------------------------
     UpdateMusicStream(music);  // NOTE: Music keeps playing between screens
@@ -306,7 +308,7 @@ void UpdateDrawFrame() {
         }
     }
     else
-        UpdateTransition();  // Update transition (fade-in, fade-out)
+        UpdateTransition(arena);
     //----------------------------------------------------------------------------------
 
     // Draw

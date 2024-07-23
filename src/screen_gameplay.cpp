@@ -164,14 +164,34 @@ void DrawGameplayScreen() {
     camera.target   = camera.position + gdata.lookingDirection * 100.0f;
 
     BeginMode3D(camera);
-    {  // Drawing world.
-        // const auto    cubePos = gdata.playerPosition + Vector3Up + Vector3Forward
-        // * 2.0f;
-        const Vector3 cubePos = {4, 3, 4};
 
-        DrawCube(cubePos, 2.0f, 6.0f, 2.0f, GREEN);
-        DrawCubeWires(cubePos, 2.0f, 6.0f, 2.0f, MAROON);
-        DrawGrid(100, 1.0f);
+    {  // Drawing world.
+        struct {
+            Vector3 pos;
+            Vector3 size;
+            Color   color;
+            Color   wireColor;
+        } cubes[] = {
+            {{11, 3, 8}, {2, 6, 2}, GREEN, MAROON},
+            {{16, 3, 3}, {2, 6, 2}, BLUE, MAROON},
+            {{-15, 4, 11}, {2, 8, 2}, YELLOW, MAROON},
+            {{3, 2, -10}, {2, 4, 2}, RED, MAROON},
+            {{19, 1, 13}, {2, 2, 2}, MAGENTA, MAROON},
+            {{6, 3, 13}, {2, 6, 2}, MAGENTA, MAROON},
+            {{11, 6, 16}, {1, 12, 1}, GRAY, MAROON},
+        };
+
+        int cubesCount = sizeof(cubes) / sizeof(cubes[0]);
+
+        FOR_RANGE (int, i, cubesCount) {
+            const auto  cube = cubes[i];
+            const auto& pos  = cube.pos;
+            const auto& size = cube.size;
+
+            DrawCube(pos, size.x, size.y, size.z, cube.color);
+            DrawCubeWires(pos, size.x, size.y, size.z, cube.wireColor);
+            DrawGrid(100, 1.0f);
+        }
     }
     if (gdata.gizmosEnabled) {
     }

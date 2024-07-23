@@ -47,12 +47,10 @@ globalVar struct {
     bool    collided           = false;
     Vector3 lookingAtCollision = {};
 
-    const float Speed       = 10.0f;  // m / s
-    const float JumpImpulse = 80.0f;  // m
-    const float Gravity     = -9.8f;  // m / s / s
-    const float Mass        = 10.0f;  // kg
-
-    const Vector3 RopesOffset = {0.2f, 0.0f, 0.0f};
+    const float speed       = 10.0f;  // m / s
+    const float jumpImpulse = 80.0f;  // m
+    const float gravity     = -9.8f;  // m / s / s
+    const float mass        = 10.0f;  // kg
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -185,7 +183,7 @@ PlayerState_Update_Function(Grounded_Update) {
             const auto angle = atan2f(controlVector.y, controlVector.x);
 
             const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 + angle)
-                                * gplayer.Speed;
+                                * gplayer.speed;
 
             gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
         }
@@ -194,7 +192,7 @@ PlayerState_Update_Function(Grounded_Update) {
     {  // Jumping.
         if (IsKeyPressed(KEY_SPACE)) {
             gplayer.velocity
-                += ApplyImpulse(Vector3Up, gplayer.Mass, gplayer.JumpImpulse);
+                += ApplyImpulse(Vector3Up, gplayer.mass, gplayer.jumpImpulse);
 
             SwitchState(PlayerStates::AIRBORNE);
             PlaySound(gdata.fxJump);
@@ -254,14 +252,14 @@ PlayerState_Update_Function(Airborne_Update) {
             const auto angle = atan2f(controlVector.y, controlVector.x);
 
             const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 + angle)
-                                * gplayer.Speed;
+                                * gplayer.speed;
 
             gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
         }
     }
 
-    {  // Gravity.
-        gplayer.velocity.y += dt * gplayer.Gravity;
+    {  // gravity.
+        gplayer.velocity.y += dt * gplayer.gravity;
     }
 
     {  // Movement.
@@ -371,7 +369,7 @@ void UpdateGameplayScreen() {
     gplayer.currentState->Update(dt);
 
     {
-        const float    MaxDistance      = 20.0f;
+        const float    maxDistance      = 20.0f;
         const Vector3& lookingDirection = gplayer.lookingDirection;
         const Vector3& playerPosition   = gplayer.position;
 
@@ -391,7 +389,7 @@ void UpdateGameplayScreen() {
             RayCollision collision = GetRayCollisionBox(ray, box);
 
             if (collision.hit                          //
-                && (collision.distance < MaxDistance)  //
+                && (collision.distance < maxDistance)  //
                 && (minCollisionDistance > collision.distance))
             {
                 minCollisionDistance = collision.distance;
@@ -455,22 +453,22 @@ void DrawGameplayScreen() {
     EndMode3D();
 
     {  // Cross.
-        const int  CrossSize  = 20;
-        const auto CrossColor = WHITE;
+        const int  crossSize  = 20;
+        const auto crossColor = WHITE;
 
         DrawLine(
             screenWidth / 2,
-            (screenHeight - CrossSize) / 2,
+            (screenHeight - crossSize) / 2,
             screenWidth / 2,
-            (screenHeight + CrossSize) / 2,
-            CrossColor
+            (screenHeight + crossSize) / 2,
+            crossColor
         );
         DrawLine(
-            (screenWidth - CrossSize) / 2,
+            (screenWidth - crossSize) / 2,
             screenHeight / 2,
-            (screenWidth + CrossSize) / 2,
+            (screenWidth + crossSize) / 2,
             screenHeight / 2,
-            CrossColor
+            crossColor
         );
     }
 

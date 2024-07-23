@@ -93,34 +93,20 @@ void DrawRope(Vector3 from, Vector3 to) {
     const auto distance = Vector3Distance(to, from);
 
     const auto  middlePoint = (from + to) / 2.0f;
-    const int   Slices      = 16;
-    const float Radius      = 0.3f;
+    const int   slices      = 16;
+    const float radius      = 0.3f;
 
-    Mesh  cylinderMesh = GenMeshCylinder(Radius, distance, Slices);
+    Mesh  cylinderMesh = GenMeshCylinder(radius, distance, slices);
     Model model        = LoadModelFromMesh(cylinderMesh);
     assert(IsModelReady(model));
 
-    const auto cross  = Vector3(from.x - to.x, 0, from.z - to.z);
-    const auto cross2 = Vector3(from.x - to.x, from.y - to.y, from.z - to.z);
-    const auto axis   = Vector3Normalize(Vector3CrossProduct(cross2, cross));
+    const auto axis  = HorizontalAxisOf(to - from);
+    const auto angle = -Vector3Angle(to - from, Vector3Up);
 
-    DrawModelEx(
-        model,
-        from,
-        axis,
-        (PI / 2 - Vector3Angle(cross2, cross)) * RAD2DEG,
-        Vector3One(),
-        YELLOW
-    );
+    DrawModelEx(model, from, axis, angle * RAD2DEG, Vector3One(), YELLOW);
     if (gdata.gizmosEnabled)
-        DrawModelWiresEx(
-            model,
-            from,
-            axis,
-            (PI / 2 - Vector3Angle(cross2, cross)) * RAD2DEG,
-            Vector3One(),
-            MAROON
-        );
+        DrawModelWiresEx(model, from, axis, angle * RAD2DEG, Vector3One(), MAROON);
+
     UnloadModel(model);
 }
 

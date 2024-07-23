@@ -10,14 +10,20 @@ globalVar struct {
 
     int finishScreen = 0;
 
+    Camera3D camera = {};
+} gdata;
+
+globalVar struct {
+    bool isGrounded;
+
     float   rotationY;
     float   rotationHorizontal;
-    float   playerSpeed = 10.0f;
     Vector3 lookingDirection;
 
-    Camera3D camera         = {};
-    Vector3  playerPosition = {0.0f, 2.0f, 10.0f};
-} gdata;
+    Vector3 playerPosition = {0.0f, 2.0f, 10.0f};
+
+    const float playerSpeed = 10.0f;
+} gplayer;
 
 //----------------------------------------------------------------------------------
 // Helper Functions Definition.
@@ -104,29 +110,29 @@ void UpdateGameplayScreen() {
         // verticalRotationBorder - Ограничение для того, чтобы,
         // поднимая камеру вверх, мы не начали смотреть перевёрнуто себе за спину.
         const auto verticalRotationBorder = PI / 2 - 0.1f;
-        gdata.rotationY -= delta.y * sensitivity;
-        gdata.rotationY
-            = Clamp(gdata.rotationY, -verticalRotationBorder, verticalRotationBorder);
+        gplayer.rotationY -= delta.y * sensitivity;
+        gplayer.rotationY
+            = Clamp(gplayer.rotationY, -verticalRotationBorder, verticalRotationBorder);
 
-        gdata.rotationHorizontal -= delta.x * sensitivity;
-        if (gdata.rotationHorizontal > 2 * PI)
-            gdata.rotationHorizontal -= 2 * PI;
-        if (gdata.rotationHorizontal < 2 * PI)
-            gdata.rotationHorizontal += 2 * PI;
+        gplayer.rotationHorizontal -= delta.x * sensitivity;
+        if (gplayer.rotationHorizontal > 2 * PI)
+            gplayer.rotationHorizontal -= 2 * PI;
+        if (gplayer.rotationHorizontal < 2 * PI)
+            gplayer.rotationHorizontal += 2 * PI;
 
         auto direction = Vector3(1, 0, 0);
         direction
-            = Vector3RotateByAxisAngle(direction, Vector3(0, 0, 1), gdata.rotationY);
+            = Vector3RotateByAxisAngle(direction, Vector3(0, 0, 1), gplayer.rotationY);
         direction = Vector3RotateByAxisAngle(
-            direction, Vector3(0, 1, 0), gdata.rotationHorizontal
+            direction, Vector3(0, 1, 0), gplayer.rotationHorizontal
         );
 
-        gdata.lookingDirection = direction;
+        gplayer.lookingDirection = direction;
     }
 
     {  // Player Movement.
         const Vector2 lookingHorizontalDirection
-            = {gdata.lookingDirection.x, gdata.lookingDirection.z};
+            = {gplayer.lookingDirection.x, gplayer.lookingDirection.z};
 
         const auto controlVector = GetPlayerMovementControlVector();
 
@@ -134,12 +140,9 @@ void UpdateGameplayScreen() {
             const auto angle = atan2f(controlVector.y, controlVector.x);
 
             const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 + angle)
-                                * (dt * gdata.playerSpeed);
+                                * (dt * gplayer.playerSpeed);
 
-            gdata.playerPosition += Vector3(dHoriz.x, 0, dHoriz.y);
-            // gdata.playerPosition
-            //     += Vector3RotateByAxisAngle(Vector3(dt, 0, 0), Vector3(0, 1, 0),
-            //     direction);
+            gplayer.playerPosition += Vector3(dHoriz.x, 0, dHoriz.y);
         }
     }
 
@@ -160,8 +163,8 @@ void DrawGameplayScreen() {
     DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
 
     auto& camera    = gdata.camera;
-    camera.position = gdata.playerPosition;
-    camera.target   = camera.position + gdata.lookingDirection * 100.0f;
+    camera.position = gplayer.playerPosition;
+    camera.target   = camera.position + gplayer.lookingDirection * 100.0f;
 
     BeginMode3D(camera);
 

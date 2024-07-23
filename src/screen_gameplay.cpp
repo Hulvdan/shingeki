@@ -173,10 +173,10 @@ void DrawGameplayScreen() {
     {  // Drawing world.
         // const auto    cubePos = gdata.playerPosition + Vector3Up + Vector3Forward
         // * 2.0f;
-        const Vector3 cubePos = {4, 1, 4};
+        const Vector3 cubePos = {4, 3, 4};
 
-        DrawCube(cubePos, 2.0f, 2.0f, 2.0f, GREEN);
-        DrawCubeWires(cubePos, 2.0f, 2.0f, 2.0f, MAROON);
+        DrawCube(cubePos, 2.0f, 6.0f, 2.0f, GREEN);
+        DrawCubeWires(cubePos, 2.0f, 6.0f, 2.0f, MAROON);
         DrawGrid(100, 1.0f);
     }
     if (gdata.gizmosEnabled) {

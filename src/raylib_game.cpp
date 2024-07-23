@@ -57,6 +57,7 @@ int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
     InitWindow(800, 450, "raylib game template");
+    MaximizeWindow();
 
     InitAudioDevice();  // Initialize audio device
 

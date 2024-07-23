@@ -5,9 +5,8 @@ static constexpr int fpsValues[] = {60, 20, 40};
 //----------------------------------------------------------------------------------
 
 globalVar struct {
-    int  currentFPSValueIndex  = 0;
-    bool gizmosEnabled         = true;
-    bool unzoomedCameraEnabled = true;
+    int  currentFPSValueIndex = 0;
+    bool gizmosEnabled        = true;
 
     int finishScreen = 0;
 
@@ -148,11 +147,6 @@ void UpdateGameplayScreen() {
         if (IsKeyPressed(KEY_F2))
             gdata.gizmosEnabled = !gdata.gizmosEnabled;
     }
-
-    {  // Enabling unzoomed camera for debugging.
-        if (IsKeyPressed(KEY_F3))
-            gdata.unzoomedCameraEnabled = !gdata.unzoomedCameraEnabled;
-    }
 }
 
 // Gameplay Screen Draw logic.
@@ -187,7 +181,6 @@ void DrawGameplayScreen() {
         TextFormat("FPS: %i (press F1 to change)", fpsValues[gdata.currentFPSValueIndex])
     );
     DebugTextDraw(TextFormat("Toggle gizmos - F2"));
-    DebugTextDraw(TextFormat("Toggle unzoomed camera - F3"));
 }
 
 // Gameplay Screen Unload logic.

@@ -73,7 +73,7 @@ Keyboard:
 
 ### Screenshots
 
-_TODO: Show your game to the world, animated GIFs recommended!._
+![](screenshots/screenshot001.png)
 
 ### Developers
 

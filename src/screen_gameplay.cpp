@@ -96,7 +96,7 @@ void DrawRope(Vector3 from, Vector3 to) {
 
     const auto  middlePoint = (from + to) / 2.0f;
     const int   slices      = 16;
-    const float radius      = 0.3f;
+    const float radius      = 0.1f;
 
     Mesh  cylinderMesh = GenMeshCylinder(radius, distance, slices);
     Model model        = LoadModelFromMesh(cylinderMesh);
@@ -216,6 +216,14 @@ PlayerState_OnEnter_Function(Airborne_OnEnter) {}
 
 PlayerState_OnExit_Function(Airborne_OnExit) {}
 
+int signof(float value) {
+    if (value > 0)
+        return 1;
+    if (value < 0)
+        return -1;
+    return 0;
+}
+
 PlayerState_Update_Function(Airborne_Update) {
     {  // Player camera rotation.
         const float sensitivity = 1.0f / 300.0f;
@@ -245,45 +253,78 @@ PlayerState_Update_Function(Airborne_Update) {
         gplayer.lookingDirection = direction;
     }
 
-    {  // Player movement direction calculation.
-        gplayer.velocity.x = 0;
-        gplayer.velocity.z = 0;
+    // {  // Player movement direction calculation.
+    //     gplayer.velocity.x = 0;
+    //     gplayer.velocity.z = 0;
+    //
+    //     const Vector2 lookingHorizontalDirection
+    //         = {gplayer.lookingDirection.x, gplayer.lookingDirection.z};
+    //
+    //     const auto controlVector = GetPlayerMovementControlVector();
+    //
+    //     if (controlVector.x != 0 || controlVector.y != 0) {
+    //         const auto angle = atan2f(controlVector.y, controlVector.x);
+    //
+    //         const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 +
+    //         angle)
+    //                             * gplayer.speed;
+    //
+    //         gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
+    //     }
+    // }
 
-        const Vector2 lookingHorizontalDirection
-            = {gplayer.lookingDirection.x, gplayer.lookingDirection.z};
-
-        const auto controlVector = GetPlayerMovementControlVector();
-
-        if (controlVector.x != 0 || controlVector.y != 0) {
-            const auto angle = atan2f(controlVector.y, controlVector.x);
-
-            const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 + angle)
-                                * gplayer.speed;
-
-            gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
+    if (IsMouseButtonPressed(0)) {
+        if (gplayer.ropeActivated) {
+            gplayer.ropeActivated = false;
         }
-    }
-
-    if (!gplayer.ropeActivated) {
-        if (IsMouseButtonPressed(0)) {
+        else if (gplayer.collided) {
             gplayer.ropeActivated = true;
             gplayer.ropePos       = gplayer.lookingAtCollision;
             gplayer.ropeLength    = Vector3Distance(gplayer.ropePos, gplayer.position);
         }
     }
 
-    if (gplayer.ropeActivated) {
-        if (!IsMouseButtonDown(0)) {
-            gplayer.ropeActivated = false;
-        }
-    }
+    // if (gplayer.ropeActivated) {
+    //     if (!IsMouseButtonDown(0)) {
+    //         gplayer.ropeActivated = false;
+    //     }
+    // }
 
     {  // gravity.
         gplayer.velocity.y += dt * gplayer.gravity;
     }
 
     {  // Movement.
-        gplayer.position += gplayer.velocity * dt;
+        auto& position = gplayer.position;
+
+        auto oldPos = position;
+        position += gplayer.velocity * dt;
+
+        if (gplayer.ropeActivated) {
+            auto& ropePos = gplayer.ropePos;
+
+            // float oldDist = Vector3Distance(oldPos, ropePos);
+            float newDist = Vector3Distance(position, ropePos);
+
+            // bool  oldDistanceIsSufficient = oldDist <= gplayer.ropeLength;
+            bool newDistanceIsSufficient = newDist <= gplayer.ropeLength;
+            if (!newDistanceIsSufficient) {
+                position
+                    = ropePos + Vector3Normalize(position - ropePos) * gplayer.ropeLength;
+
+                const auto axis = Vector3CrossProduct(ropePos - position, Vector3Up);
+
+                // TODO: Нужно найти плоскость. Текущее решение - хреновое.
+                const auto perp = Vector3Perpendicular(ropePos - position);
+
+                const auto angle = Vector3Angle(perp, gplayer.velocity);
+
+                auto newVelocity
+                    = Vector3RotateByAxisAngle(gplayer.velocity, axis, angle);
+
+                gplayer.velocity = newVelocity;
+            }
+        }
     }
 
     {
@@ -356,7 +397,7 @@ void InitGameplayScreen(Arena& arena) {
 
     gdata.camera.target     = Vector3{0.0f, 0.0f, 0.0f};
     gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
-    gdata.camera.fovy       = 45.0f;
+    gdata.camera.fovy       = 55.0f;
     gdata.camera.projection = CAMERA_PERSPECTIVE;
 
     DisableCursor();
@@ -503,6 +544,9 @@ void DrawGameplayScreen() {
     DebugTextDraw("Toggle gizmos - F2");
     DebugTextDraw(TextFormat(
         "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y, gplayer.position.z
+    ));
+    DebugTextDraw(TextFormat(
+        "vel %.2f %.2f %.2f", gplayer.velocity.x, gplayer.velocity.y, gplayer.velocity.z
     ));
     DebugTextDraw(TextFormat(
         "look %.2f %.2f %.2f",

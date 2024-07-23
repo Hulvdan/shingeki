@@ -12,3 +12,5 @@
 #define rcast reinterpret_cast
 
 using u8 = char;
+
+constexpr float floatInf = std::numeric_limits<float>::infinity();

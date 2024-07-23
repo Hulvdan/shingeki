@@ -11,6 +11,27 @@ globalVar struct {
     Camera3D camera = {};
 
     PlayerState* states = nullptr;
+
+    Sound  fxJump;
+    int    fxFootstepsCount = 0;
+    Sound* fxFootsteps      = nullptr;
+
+    struct {
+        Vector3 pos;
+        Vector3 size;
+        Color   color;
+    } cubes[10] = {
+        {{11, 3, 8}, {2, 6, 2}, GREEN},
+        {{16, 3, 3}, {2, 6, 2}, BLUE},
+        {{-15, 4, 11}, {2, 8, 2}, YELLOW},
+        {{3, 2, -10}, {2, 4, 2}, RED},
+        {{19, 1, 13}, {2, 2, 2}, MAGENTA},
+        {{6, 3, 13}, {2, 6, 2}, MAGENTA},
+        {{11, 6, 16}, {1, 12, 1}, GRAY},
+        {{-25, 8, 11}, {2, 16, 2}, YELLOW},
+        {{-25, 12, 16}, {2, 1, 8}, YELLOW},
+        {{-25, 8, 21}, {2, 16, 2}, YELLOW},
+    };
 } gdata;
 
 globalVar struct {
@@ -22,6 +43,9 @@ globalVar struct {
     Vector3 velocity = {};
 
     PlayerState* currentState = nullptr;
+
+    bool    collided           = false;
+    Vector3 lookingAtCollision = {};
 
     const float Speed       = 10.0f;  // m / s
     const float JumpImpulse = 80.0f;  // m
@@ -144,6 +168,7 @@ PlayerState_Update_Function(Grounded_Update) {
                 += ApplyImpulse(Vector3Up, gplayer.Mass, gplayer.JumpImpulse);
 
             SwitchState(PlayerStates::AIRBORNE);
+            PlaySound(gdata.fxJump);
         }
     }
 
@@ -159,6 +184,53 @@ PlayerState_OnEnter_Function(Airborne_OnEnter) {}
 PlayerState_OnExit_Function(Airborne_OnExit) {}
 
 PlayerState_Update_Function(Airborne_Update) {
+    {  // Player camera rotation.
+        const float sensitivity = 1.0f / 300.0f;
+
+        const auto delta = GetMouseDelta();
+
+        // verticalRotationBorder - Ограничение для того, чтобы,
+        // поднимая камеру вверх, мы не начали смотреть перевёрнуто себе за спину.
+        const auto verticalRotationBorder = PI / 2 - 0.1f;
+        gplayer.rotationY -= delta.y * sensitivity;
+        gplayer.rotationY
+            = Clamp(gplayer.rotationY, -verticalRotationBorder, verticalRotationBorder);
+
+        gplayer.rotationHorizontal -= delta.x * sensitivity;
+        if (gplayer.rotationHorizontal > 2 * PI)
+            gplayer.rotationHorizontal -= 2 * PI;
+        if (gplayer.rotationHorizontal < 2 * PI)
+            gplayer.rotationHorizontal += 2 * PI;
+
+        auto direction = Vector3(1, 0, 0);
+        direction
+            = Vector3RotateByAxisAngle(direction, Vector3(0, 0, 1), gplayer.rotationY);
+        direction = Vector3RotateByAxisAngle(
+            direction, Vector3(0, 1, 0), gplayer.rotationHorizontal
+        );
+
+        gplayer.lookingDirection = direction;
+    }
+
+    {  // Player movement direction calculation.
+        gplayer.velocity.x = 0;
+        gplayer.velocity.z = 0;
+
+        const Vector2 lookingHorizontalDirection
+            = {gplayer.lookingDirection.x, gplayer.lookingDirection.z};
+
+        const auto controlVector = GetPlayerMovementControlVector();
+
+        if (controlVector.x != 0 || controlVector.y != 0) {
+            const auto angle = atan2f(controlVector.y, controlVector.x);
+
+            const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 + angle)
+                                * gplayer.Speed;
+
+            gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
+        }
+    }
+
     {  // Gravity.
         gplayer.velocity.y += dt * gplayer.Gravity;
     }
@@ -171,10 +243,10 @@ PlayerState_Update_Function(Airborne_Update) {
         if (gplayer.position.y < 0) {
             gplayer.position.y = 0;
 
-            if (gplayer.velocity.y < 0) {
+            if (gplayer.velocity.y < 0)
                 gplayer.velocity.y = 0;
-                SwitchState(PlayerStates::GROUNDED);
-            }
+
+            SwitchState(PlayerStates::GROUNDED);
         }
     }
 }
@@ -203,6 +275,18 @@ void InitGameplayScreen(Arena& arena) {
         states[(int)PlayerStates::AIRBORNE]
             = {Airborne_OnEnter, Airborne_OnExit, Airborne_Update};
     }
+    if (gdata.fxFootsteps == nullptr) {
+        auto& footsteps   = gdata.fxFootsteps;
+        gdata.fxFootsteps = AllocateArray(arena, Sound, 5);
+
+        FOR_RANGE (int, i, 5) {
+            gdata.fxFootsteps[i] = LoadSound(
+                TextFormat("resources/screens/gameplay/footstep_%i.wav.wav", i)
+            );
+        }
+    }
+    gdata.fxJump = LoadSound("resources/screens/gameplay/jump.wav");
+
     if (gplayer.currentState == nullptr)
         gplayer.currentState = gdata.states + (int)PlayerStates::GROUNDED;
 
@@ -235,9 +319,10 @@ void InitGameplayScreen(Arena& arena) {
 void UpdateGameplayScreen() {
     auto dt = GetFrameTime();
 
-    // // Press enter or tap to change to ENDING screen.
+    // Press enter or tap to change to ENDING screen.
     // if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
-    //     gdata.finishScreen = 1;
+    if (IsKeyPressed(KEY_ENTER))
+        gdata.finishScreen = 1;
 
     {  // Controlling FPS.
         if (IsKeyPressed(KEY_F1)) {
@@ -255,6 +340,47 @@ void UpdateGameplayScreen() {
     }
 
     gplayer.currentState->Update(dt);
+
+    {
+        const float    MaxDistance      = 20.0f;
+        const Vector3& lookingDirection = gplayer.lookingDirection;
+        const Vector3& playerPosition   = gplayer.position;
+
+        bool    collided             = false;
+        float   minCollisionDistance = floatInf;
+        Vector3 collisionPoint       = {};
+        // Vector3 collisionNormal      = {};
+
+        Ray ray = {gplayer.position + Vector3Up * 2.0f, gplayer.lookingDirection};
+
+        int cubesCount = sizeof(gdata.cubes) / sizeof(gdata.cubes[0]);
+        FOR_RANGE (int, i, cubesCount) {
+            const auto cube = gdata.cubes[i];
+
+            BoundingBox box = {cube.pos - cube.size / 2.0f, cube.pos + cube.size / 2.0f};
+
+            RayCollision collision = GetRayCollisionBox(ray, box);
+
+            if (collision.hit                          //
+                && (collision.distance < MaxDistance)  //
+                && (minCollisionDistance > collision.distance))
+            {
+                minCollisionDistance = collision.distance;
+
+                collisionPoint = collision.point;
+                // collisionNormal = collision.normal;
+
+                collided = true;
+            }
+        }
+
+        if (collided) {
+            gplayer.collided           = true;
+            gplayer.lookingAtCollision = collisionPoint;
+        }
+        else
+            gplayer.collided = false;
+    }
 }
 
 // Gameplay Screen Draw logic.
@@ -273,28 +399,10 @@ void DrawGameplayScreen() {
 
     BeginMode3D(camera);
     {  // Drawing world.
-        struct {
-            Vector3 pos;
-            Vector3 size;
-            Color   color;
-        } cubes[] = {
-            {{11, 3, 8}, {2, 6, 2}, GREEN},
-            {{16, 3, 3}, {2, 6, 2}, BLUE},
-            {{-15, 4, 11}, {2, 8, 2}, YELLOW},
-            {{3, 2, -10}, {2, 4, 2}, RED},
-            {{19, 1, 13}, {2, 2, 2}, MAGENTA},
-            {{6, 3, 13}, {2, 6, 2}, MAGENTA},
-            {{11, 6, 16}, {1, 12, 1}, GRAY},
-
-            {{-25, 8, 11}, {2, 16, 2}, YELLOW},
-            {{-25, 12, 16}, {2, 1, 8}, YELLOW},
-            {{-25, 8, 21}, {2, 16, 2}, YELLOW},
-        };
-
-        int cubesCount = sizeof(cubes) / sizeof(cubes[0]);
+        int cubesCount = sizeof(gdata.cubes) / sizeof(gdata.cubes[0]);
 
         FOR_RANGE (int, i, cubesCount) {
-            const auto  cube = cubes[i];
+            const auto  cube = gdata.cubes[i];
             const auto& pos  = cube.pos;
             const auto& size = cube.size;
 
@@ -303,12 +411,33 @@ void DrawGameplayScreen() {
             DrawGrid(100, 1.0f);
         }
     }
+    if (gplayer.collided)
+        DrawLine3D(gplayer.position, gplayer.lookingAtCollision, WHITE);
     EndMode3D();
+
+    {  // Cross.
+        const int  CrossSize  = 20;
+        const auto CrossColor = WHITE;
+
+        DrawLine(
+            screenWidth / 2,
+            (screenHeight - CrossSize) / 2,
+            screenWidth / 2,
+            (screenHeight + CrossSize) / 2,
+            CrossColor
+        );
+        DrawLine(
+            (screenWidth - CrossSize) / 2,
+            screenHeight / 2,
+            (screenWidth + CrossSize) / 2,
+            screenHeight / 2,
+            CrossColor
+        );
+    }
 
     DebugTextDraw(
         TextFormat("FPS: %i (press F1 to change)", fpsValues[gdata.currentFPSValueIndex])
     );
-    DebugTextDraw(TextFormat("Toggle gizmos - F2"));
     DebugTextDraw("Toggle gizmos - F2");
     DebugTextDraw(TextFormat(
         "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y, gplayer.position.z
@@ -324,6 +453,13 @@ void DrawGameplayScreen() {
 // Gameplay Screen Unload logic.
 void UnloadGameplayScreen() {
     EnableCursor();
+
+    if (gdata.fxFootsteps != nullptr) {
+        FOR_RANGE (int, i, 5) {
+            UnloadSound(gdata.fxFootsteps[i]);
+        }
+    }
+    UnloadSound(gdata.fxJump);
 }
 
 // Gameplay Screen should finish?

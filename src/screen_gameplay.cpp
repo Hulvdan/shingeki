@@ -81,6 +81,40 @@ Vector3 ApplyImpulse(Vector3 direction, float mass, float forceValue) {
     return direction * (forceValue / mass);
 }
 
+Vector3 HorizontalAxisOf(Vector3 value) {
+    return Vector3Normalize(Vector3CrossProduct(value, Vector3Up));
+}
+
+Vector3 DisplaceToTheSide(Vector3 value, float displacement) {
+    return value + HorizontalAxisOf(value) * displacement;
+}
+
+void DrawRope(Vector3 from, Vector3 to) {
+    const auto distance = Vector3Distance(to, from);
+
+    const auto  middlePoint = (from + to) / 2.0f;
+    const int   Slices      = 16;
+    const float Radius      = 0.3f;
+
+    Mesh  cylinderMesh = GenMeshCylinder(Radius, distance, Slices);
+    Model model        = LoadModelFromMesh(cylinderMesh);
+    assert(IsModelReady(model));
+
+    const auto cross  = Vector3(from.x - to.x, 0, from.z - to.z);
+    const auto cross2 = Vector3(from.x - to.x, from.y - to.y, from.z - to.z);
+    const auto axis   = Vector3Normalize(Vector3CrossProduct(cross2, cross));
+
+    DrawModelEx(
+        model,
+        from,
+        axis,
+        (PI / 2 - Vector3Angle(cross2, cross)) * RAD2DEG,
+        Vector3One(),
+        YELLOW
+    );
+    UnloadModel(model);
+}
+
 //----------------------------------------------------------------------------------
 // Player State Machine.
 //----------------------------------------------------------------------------------
@@ -414,39 +448,13 @@ void DrawGameplayScreen() {
     }
     {  // Drawing ropes.
         if (gplayer.collided) {
-            const auto from     = gplayer.position + gplayer.RopesOffset;
-            const auto to       = gplayer.lookingAtCollision;
-            const auto distance = Vector3Distance(to, from);
+            Vector3 from = gplayer.position;
+            // Смещаем в сторону.
+            from += Vector3Negate(HorizontalAxisOf(gplayer.lookingDirection) * 2.0f);
+            // Смещаем вниз.
+            from -= Vector3Up * 0.5f;
 
-            const auto  middlePoint = (from + to) / 2.0f;
-            const int   Slices      = 16;
-            const float Radius      = 0.3f;
-
-            Mesh  cylinderMesh = GenMeshCylinder(Radius, distance, Slices);
-            Model model        = LoadModelFromMesh(cylinderMesh);
-            assert(IsModelReady(model));
-
-            const auto cross = Vector3(
-                gplayer.lookingAtCollision.x - gplayer.position.x,
-                0,
-                gplayer.lookingAtCollision.z - gplayer.position.z
-            );
-            const auto cross2 = Vector3(
-                gplayer.lookingAtCollision.x - gplayer.position.x,
-                gplayer.lookingAtCollision.y - gplayer.position.y,
-                gplayer.lookingAtCollision.z - gplayer.position.z
-            );
-            const auto axis = Vector3Normalize(Vector3CrossProduct(cross2, cross));
-
-            DrawModelEx(
-                model,
-                from + axis * 1.0f,
-                axis,
-                (-Vector3Angle(cross2, cross) + PI / 2) * RAD2DEG,
-                Vector3One(),
-                YELLOW
-            );
-            UnloadModel(model);
+            DrawRope(from, gplayer.lookingAtCollision);
         }
 
         if (gdata.gizmosEnabled && gplayer.collided)

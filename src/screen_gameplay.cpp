@@ -406,13 +406,52 @@ void DrawGameplayScreen() {
             const auto& pos  = cube.pos;
             const auto& size = cube.size;
 
-            DrawCube(pos, size.x, size.y, size.z, cube.color);
-            DrawCubeWires(pos, size.x, size.y, size.z, MAROON);
-            DrawGrid(100, 1.0f);
+            DrawCubeV(pos, size, cube.color);
+            DrawCubeWiresV(pos, size, MAROON);
         }
+
+        DrawGrid(100, 1.0f);
     }
-    if (gplayer.collided)
-        DrawLine3D(gplayer.position, gplayer.lookingAtCollision, WHITE);
+    {  // Drawing ropes.
+        if (gplayer.collided) {
+            const auto from     = gplayer.position + gplayer.RopesOffset;
+            const auto to       = gplayer.lookingAtCollision;
+            const auto distance = Vector3Distance(to, from);
+
+            const auto  middlePoint = (from + to) / 2.0f;
+            const int   Slices      = 16;
+            const float Radius      = 0.3f;
+
+            Mesh  cylinderMesh = GenMeshCylinder(Radius, distance, Slices);
+            Model model        = LoadModelFromMesh(cylinderMesh);
+            assert(IsModelReady(model));
+
+            const auto cross = Vector3(
+                gplayer.lookingAtCollision.x - gplayer.position.x,
+                0,
+                gplayer.lookingAtCollision.z - gplayer.position.z
+            );
+            const auto cross2 = Vector3(
+                gplayer.lookingAtCollision.x - gplayer.position.x,
+                gplayer.lookingAtCollision.y - gplayer.position.y,
+                gplayer.lookingAtCollision.z - gplayer.position.z
+            );
+            const auto axis = Vector3Normalize(Vector3CrossProduct(cross2, cross));
+
+            DrawModelEx(
+                model,
+                from + axis * 1.0f,
+                axis,
+                (-Vector3Angle(cross2, cross) + PI / 2) * RAD2DEG,
+                Vector3One(),
+                YELLOW
+            );
+            UnloadModel(model);
+        }
+
+        if (gdata.gizmosEnabled && gplayer.collided)
+            DrawLine3D(gplayer.position, gplayer.lookingAtCollision, WHITE);
+    }
     EndMode3D();
 
     {  // Cross.

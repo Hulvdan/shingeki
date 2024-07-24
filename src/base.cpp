@@ -11,6 +11,9 @@
 #define scast static_cast
 #define rcast reinterpret_cast
 
+#define Min(a, b) ((a) > (b) ? (b) : (a))
+#define Max(a, b) ((a) > (b) ? (a) : (b))
+
 #ifdef TESTS
 #define Assert(expr) CHECK(expr)
 #define Assert_False(expr) CHECK_FALSE(expr)

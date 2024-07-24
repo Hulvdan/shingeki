@@ -34,6 +34,7 @@ globalVar struct {
     };
 
     std::vector<Vector3> linesToDraw;
+    std::vector<Color>   colorsOfLines;
 } gdata;
 
 globalVar struct {
@@ -227,17 +228,6 @@ int signof(float value) {
 }
 
 Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDirection) {
-    const auto axis = Vector3CrossProduct(Vector3Up, ropeDirection);
-
-#if 1
-    auto perp = Vector3Perpendicular(ropeDirection);
-#else
-    auto    d    = ropeDirection;
-    Vector3 v1   = {0, 1, -d.y / d.z};
-    Vector3 v2   = {1, -d.x / d.y, 0};
-    auto    perp = Vector3CrossProduct(v2, v1);
-#endif
-
     if (gdata.gizmosEnabled) {
         const float   displacement = 0.3f;
         const Vector3 points[]     = {
@@ -257,54 +247,66 @@ Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDire
             auto p1Rotated = Vector3RotateByAxisAngle(p1, axis, angle);
             auto p2Rotated = Vector3RotateByAxisAngle(p2, axis, angle);
 
-            gdata.linesToDraw.push_back(gplayer.position + p1Rotated);
-            gdata.linesToDraw.push_back(gplayer.position + p2Rotated);
+            if (gdata.gizmosEnabled) {
+                gdata.linesToDraw.push_back(gplayer.position + p1Rotated);
+                gdata.linesToDraw.push_back(gplayer.position + p2Rotated);
+                gdata.colorsOfLines.push_back(WHITE);
+            }
         }
+        if (gdata.gizmosEnabled) {
+            gdata.linesToDraw.push_back(gplayer.position);
+            gdata.linesToDraw.push_back(gplayer.ropePos);
+            gdata.colorsOfLines.push_back(WHITE);
+        }
+    }
+
+    auto axis = HorizontalAxisOf(ropeDirection);
+    // auto angle2 = GetLesserAngle(
+    // -Vector3Angle(Vector3Up, ropeDirection), -Vector3Angle(Vector3Down, ropeDirection)
+    // );
+    auto angle2   = -Vector3Angle(Vector3Up, ropeDirection);
+    auto pRotated = Vector3Normalize(
+        Vector3RotateByAxisAngle({ropeDirection.x, 0, ropeDirection.z}, axis, angle2)
+    );
+
+    // auto angle3                     = Vector3Angle(velocity, ropeDirection) - PI / 2;
+    // auto velocityProjectedToRopeDir = Vector3RotateByAxisAngle(velocity, axis,
+    // angle3);
+    //
+    // if ((signof(pRotated.z) != signof(velocityProjectedToRopeDir.z))
+    //     || (signof(pRotated.x) != signof(velocityProjectedToRopeDir.x)))
+    //     pRotated *= -1;
+
+    if (gdata.gizmosEnabled) {
+        gdata.linesToDraw.push_back(gplayer.position + pRotated);
         gdata.linesToDraw.push_back(gplayer.position);
-        gdata.linesToDraw.push_back(gplayer.ropePos);
+        gdata.colorsOfLines.push_back(RED);
     }
 
-    auto angle = Vector3Angle(perp, velocity);
-    angle *= -signof(Vector3DotProduct(Vector3Up, ropeDirection));
+    // auto angle = Vector3Angle(velocity, pRotated);
 
-    // angle *= signof(Vector3DotProduct(axis, perp));
-    // angle *= -signof(Vector3DotProduct(velocity, ropeDirection));
-    // angle *= signof(Vector3DotProduct(velocity, axis));
+    auto l = Vector3Length(velocity);
+    return pRotated * Vector3DotProduct(pRotated, velocity)
+           + axis * Vector3DotProduct(axis, velocity);
 
-    // angle *= signof(Vector3DotProduct(perp, ropeDirection));
-    // angle *= signof(Vector3DotProduct(velocity, perp));
-    // angle *= -signof(Vector3DotProduct(axis, perp));
+    auto a0    = Vector3Angle(velocity, pRotated);
+    auto a1    = Vector3Angle(-velocity, pRotated);
+    auto angle = GetLesserAngle(a0, a1);
 
-    auto result = Vector3RotateByAxisAngle(velocity, axis, angle);
-    if (velocity.y > 0) {
-        if ((result.x) > 0 && (result.z < 0))
-            result.y *= -1;
+    // Vector3 axis = HorizontalAxisOf(pRotated);
+    if (angle == a1)
+        axis = -axis;
+    // axis = HorizontalAxisOf(-pRotated);
+    // auto angle2 = -Vector3Angle(Vector3Up, ropeDirection);
+    // auto angle     = PI / 2 - Vector3Angle(Vector3Up, perp);
+    auto result = Vector3RotateByAxisAngle(velocity, axis, angle / 2.0f);
 
-        if ((result.x) < 0 && (result.z < 0))
-            result.y *= -1;
+    if (gdata.gizmosEnabled) {
+        gdata.linesToDraw.push_back(gplayer.position);
+        gdata.linesToDraw.push_back(gplayer.position + Vector3Normalize(result));
+        gdata.colorsOfLines.push_back(GREEN);
     }
-    else {
-        if ((result.x) > 0 && (result.z > 0))
-            result.y *= -1;
 
-        if ((result.x) < 0 && (result.z > 0))
-            result.y *= -1;
-    }
-    // if (ropeDirection.y < 0) {
-    //     result.x *= -1;
-    //     result.z *= -1;
-    // }
-    // else {
-    //     // result.y *= -1;
-    // }
-    // if (ropeDirection.y > 0) {
-    //     result.x *= -1;
-    //     result.z *= -1;
-    //     result.y *= -1;
-    // }
-    // else {
-    //     result *= -1;
-    // }
     return result;
 }
 
@@ -337,32 +339,31 @@ TEST_CASE ("TransformVelocityBasedOnRopeDirection") {
             Assert(tNegXNegZ.x < 0);
             Assert(tNegXNegZ.z < 0);
 
-            // auto tPosX = TransformVelocityBasedOnRopeDirection(vel, {1, -yvelocity,
-            // 0}); auto tNegX = TransformVelocityBasedOnRopeDirection(vel, {-1,
-            // -yvelocity, 0}); auto tPosZ = TransformVelocityBasedOnRopeDirection(vel,
-            // {0, -yvelocity, 1}); auto tNegZ =
-            // TransformVelocityBasedOnRopeDirection(vel, {0, -yvelocity, -1});
-            //
-            // Assert(tPosX.x > 0);
-            // Assert(FloatEquals(tPosX.z, 0));
-            //
-            // Assert(tNegX.x < 0);
-            // Assert(FloatEquals(tNegX.z, 0));
-            //
-            // Assert(tPosZ.z > 0);
-            // Assert(FloatEquals(tPosZ.x, 0));
-            //
-            // Assert(tNegZ.z < 0);
-            // Assert(FloatEquals(tNegZ.x, 0));
-            //
+            auto tPosX = TransformVelocityBasedOnRopeDirection(vel, {1, -yvelocity, 0});
+            auto tNegX = TransformVelocityBasedOnRopeDirection(vel, {-1, -yvelocity, 0});
+            auto tPosZ = TransformVelocityBasedOnRopeDirection(vel, {0, -yvelocity, 1});
+            auto tNegZ = TransformVelocityBasedOnRopeDirection(vel, {0, -yvelocity, -1});
+
+            Assert(tPosX.x > 0);
+            Assert(FloatEquals(tPosX.z, 0));
+
+            Assert(tNegX.x < 0);
+            Assert(FloatEquals(tNegX.z, 0));
+
+            Assert(tPosZ.z > 0);
+            Assert(FloatEquals(tPosZ.x, 0));
+
+            Assert(tNegZ.z < 0);
+            Assert(FloatEquals(tNegZ.x, 0));
+
             Assert(yvelocity * tPosXPosZ.y > 0);
             Assert(yvelocity * tPosXNegZ.y > 0);
             Assert(yvelocity * tNegXPosZ.y > 0);
             Assert(yvelocity * tNegXNegZ.y > 0);
-            // Assert(yvelocity * tPosX.y > 0);
-            // Assert(yvelocity * tNegX.y > 0);
-            // Assert(yvelocity * tPosZ.y > 0);
-            // Assert(yvelocity * tNegZ.y > 0);
+            Assert(yvelocity * tPosX.y > 0);
+            Assert(yvelocity * tNegX.y > 0);
+            Assert(yvelocity * tPosZ.y > 0);
+            Assert(yvelocity * tNegZ.y > 0);
         }
     }
 }
@@ -442,6 +443,9 @@ PlayerState_Update_Function(Airborne_Update) {
 
         auto oldPos = position;
         position += gplayer.velocity * dt;
+
+        // gplayer.velocity
+        //     = Vector3ExponentialDecay(gplayer.velocity, Vector3Zero(), 0.1f, dt);
 
         if (gplayer.ropeActivated) {
             auto& ropePos = gplayer.ropePos;
@@ -549,8 +553,10 @@ void UpdateGameplayScreen() {
     }
 
     {  // Removing temporary debug lines.
-        if (IsKeyPressed(KEY_F3))
+        if (IsKeyPressed(KEY_F3)) {
             gdata.linesToDraw.clear();
+            gdata.colorsOfLines.clear();
+        }
     }
 
     gplayer.currentState->Update(dt);
@@ -637,11 +643,11 @@ void DrawGameplayScreen() {
             DrawRope(from, gplayer.ropePos);
         }
     }
-    {  // Drawing lines 3D.
+    if (gdata.gizmosEnabled) {  // Drawing lines 3D.
         FOR_RANGE (int, i, gdata.linesToDraw.size() / 2) {
             auto& p1 = gdata.linesToDraw[i * 2];
             auto& p2 = gdata.linesToDraw[i * 2 + 1];
-            DrawLine3D(p1, p2, WHITE);
+            DrawLine3D(p1, p2, gdata.colorsOfLines[i]);
         }
         // gdata.linesToDraw.clear();
     }

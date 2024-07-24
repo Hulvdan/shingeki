@@ -35,6 +35,11 @@ Vector2 Vector2ExponentialDecay(Vector2 a, Vector2 b, float decay, float dt) {
     return b + (a - b) * expf(-decay * dt);
 }
 
+// ExponentialDecay для Vector3.
+Vector3 Vector3ExponentialDecay(Vector3 a, Vector3 b, float decay, float dt) {
+    return b + (a - b) * expf(-decay * dt);
+}
+
 int Floor(int number, int factor) {
     int result = (number / factor) * factor;
     if (number < 0 && number % factor != 0) {
@@ -62,4 +67,27 @@ TEST_CASE ("CeilDivision") {
     Assert(CeilDivision(10, 5) == 2);
     Assert(CeilDivision(10, 6) == 2);
     Assert(CeilDivision(10, 4) == 3);
+}
+
+float GetLesserAngle(float aa, float bb) {
+    auto a = aa;
+    auto b = bb;
+    while (a < -PI)
+        a += 2 * PI;
+    while (b < -PI)
+        b += 2 * PI;
+    while (a >= PI)
+        a -= 2 * PI;
+    while (b >= PI)
+        b -= 2 * PI;
+
+    if (abs(a) > abs(b))
+        return bb;
+    return aa;
+}
+
+TEST_CASE ("GetLesserAngle") {
+    Assert(GetLesserAngle(PI * 1 / 2, PI) == PI * 1 / 2);
+    Assert(GetLesserAngle(-PI * 1 / 2, PI) == -PI * 1 / 2);
+    Assert(GetLesserAngle(PI / 2, PI * 15 / 8) == PI * 15 / 8);
 }

@@ -32,6 +32,8 @@ globalVar struct {
         {{-25, 12, 16}, {2, 1, 8}, YELLOW},
         {{-25, 8, 21}, {2, 16, 2}, YELLOW},
     };
+
+    std::vector<Vector3> linesToDraw;
 } gdata;
 
 globalVar struct {
@@ -225,55 +227,144 @@ int signof(float value) {
 }
 
 Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDirection) {
-    const auto axis = Vector3CrossProduct(ropeDirection, Vector3Up);
+    const auto axis = Vector3CrossProduct(Vector3Up, ropeDirection);
 
 #if 1
-    // TODO: Нужно найти плоскость. Текущее решение - хреновое.
     auto perp = Vector3Perpendicular(ropeDirection);
 #else
     auto    d    = ropeDirection;
     Vector3 v1   = {0, 1, -d.y / d.z};
     Vector3 v2   = {1, -d.x / d.y, 0};
-    auto    perp = Vector3CrossProduct(v1, v2);
+    auto    perp = Vector3CrossProduct(v2, v1);
 #endif
 
+    if (gdata.gizmosEnabled) {
+        const float   displacement = 0.3f;
+        const Vector3 points[]     = {
+            {displacement, 0, displacement},
+            {-displacement, 0, displacement},
+            {-displacement, 0, -displacement},
+            {displacement, 0, -displacement},
+        };
+        const int pointIndices[] = {0, 1, 1, 2, 2, 3, 3, 0, 1, 3, 0, 2};
+
+        FOR_RANGE (int, i, 6) {
+            auto p1 = points[pointIndices[i * 2]];
+            auto p2 = points[pointIndices[i * 2 + 1]];
+
+            auto axis      = HorizontalAxisOf(ropeDirection);
+            auto angle     = -Vector3Angle(Vector3Up, ropeDirection);
+            auto p1Rotated = Vector3RotateByAxisAngle(p1, axis, angle);
+            auto p2Rotated = Vector3RotateByAxisAngle(p2, axis, angle);
+
+            gdata.linesToDraw.push_back(gplayer.position + p1Rotated);
+            gdata.linesToDraw.push_back(gplayer.position + p2Rotated);
+        }
+        gdata.linesToDraw.push_back(gplayer.position);
+        gdata.linesToDraw.push_back(gplayer.ropePos);
+    }
+
     auto angle = Vector3Angle(perp, velocity);
+    angle *= -signof(Vector3DotProduct(Vector3Up, ropeDirection));
+
     // angle *= signof(Vector3DotProduct(axis, perp));
-    // angle += PI / 2;
+    // angle *= -signof(Vector3DotProduct(velocity, ropeDirection));
+    // angle *= signof(Vector3DotProduct(velocity, axis));
 
-    // TraceLog(LOG_INFO, TextFormat("angle to perp %.2f", angle));
+    // angle *= signof(Vector3DotProduct(perp, ropeDirection));
+    // angle *= signof(Vector3DotProduct(velocity, perp));
+    // angle *= -signof(Vector3DotProduct(axis, perp));
 
-    // if (perp.x * perp.z < 0)
-    // angle += PI;
+    auto result = Vector3RotateByAxisAngle(velocity, axis, angle);
+    if (velocity.y > 0) {
+        if ((result.x) > 0 && (result.z < 0))
+            result.y *= -1;
 
-    auto result = Vector3RotateByAxisAngle(velocity, -axis, angle);
+        if ((result.x) < 0 && (result.z < 0))
+            result.y *= -1;
+    }
+    else {
+        if ((result.x) > 0 && (result.z > 0))
+            result.y *= -1;
+
+        if ((result.x) < 0 && (result.z > 0))
+            result.y *= -1;
+    }
+    // if (ropeDirection.y < 0) {
+    //     result.x *= -1;
+    //     result.z *= -1;
+    // }
+    // else {
+    //     // result.y *= -1;
+    // }
+    // if (ropeDirection.y > 0) {
+    //     result.x *= -1;
+    //     result.z *= -1;
+    //     result.y *= -1;
+    // }
+    // else {
+    //     result *= -1;
+    // }
     return result;
 }
 
 TEST_CASE ("TransformVelocityBasedOnRopeDirection") {
-    const Vector3 vel = {0, -1, 0};
+    float velocities[] = {-1, 1};
+    for (float yvelocity : velocities) {
+        SUBCASE(
+            TextFormat("y velocity is %f, y rope direction is %f", yvelocity, -yvelocity)
+        ) {
+            const Vector3 vel = {0, yvelocity, 0};
 
-    auto t1 = TransformVelocityBasedOnRopeDirection(vel, {1, 1, 0});
-    auto t2 = TransformVelocityBasedOnRopeDirection(vel, {-1, 1, 0});
-    auto t3 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, 1});
-    auto t4 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, -1});
+            auto tPosXPosZ
+                = TransformVelocityBasedOnRopeDirection(vel, {1, -yvelocity, 1});
+            auto tPosXNegZ
+                = TransformVelocityBasedOnRopeDirection(vel, {1, -yvelocity, -1});
+            auto tNegXPosZ
+                = TransformVelocityBasedOnRopeDirection(vel, {-1, -yvelocity, 1});
+            auto tNegXNegZ
+                = TransformVelocityBasedOnRopeDirection(vel, {-1, -yvelocity, -1});
 
-    Assert(t1.y < 0);
-    Assert(t2.y < 0);
-    Assert(t3.y < 0);
-    Assert(t4.y < 0);
+            Assert(tPosXPosZ.x > 0);
+            Assert(tPosXPosZ.z > 0);
 
-    Assert(t1.x > 0);
-    Assert(FloatEquals(t1.z, 0));
+            Assert(tPosXNegZ.x > 0);
+            Assert(tPosXNegZ.z < 0);
 
-    Assert(t2.x < 0);
-    Assert(FloatEquals(t2.z, 0));
+            Assert(tNegXPosZ.x < 0);
+            Assert(tNegXPosZ.z > 0);
 
-    Assert(t3.z > 0);
-    Assert(FloatEquals(t3.x, 0));
+            Assert(tNegXNegZ.x < 0);
+            Assert(tNegXNegZ.z < 0);
 
-    Assert(t4.z < 0);
-    Assert(FloatEquals(t4.x, 0));
+            // auto tPosX = TransformVelocityBasedOnRopeDirection(vel, {1, -yvelocity,
+            // 0}); auto tNegX = TransformVelocityBasedOnRopeDirection(vel, {-1,
+            // -yvelocity, 0}); auto tPosZ = TransformVelocityBasedOnRopeDirection(vel,
+            // {0, -yvelocity, 1}); auto tNegZ =
+            // TransformVelocityBasedOnRopeDirection(vel, {0, -yvelocity, -1});
+            //
+            // Assert(tPosX.x > 0);
+            // Assert(FloatEquals(tPosX.z, 0));
+            //
+            // Assert(tNegX.x < 0);
+            // Assert(FloatEquals(tNegX.z, 0));
+            //
+            // Assert(tPosZ.z > 0);
+            // Assert(FloatEquals(tPosZ.x, 0));
+            //
+            // Assert(tNegZ.z < 0);
+            // Assert(FloatEquals(tNegZ.x, 0));
+            //
+            Assert(yvelocity * tPosXPosZ.y > 0);
+            Assert(yvelocity * tPosXNegZ.y > 0);
+            Assert(yvelocity * tNegXPosZ.y > 0);
+            Assert(yvelocity * tNegXNegZ.y > 0);
+            // Assert(yvelocity * tPosX.y > 0);
+            // Assert(yvelocity * tNegX.y > 0);
+            // Assert(yvelocity * tPosZ.y > 0);
+            // Assert(yvelocity * tNegZ.y > 0);
+        }
+    }
 }
 
 PlayerState_Update_Function(Airborne_Update) {
@@ -457,6 +548,11 @@ void UpdateGameplayScreen() {
             gdata.gizmosEnabled = !gdata.gizmosEnabled;
     }
 
+    {  // Removing temporary debug lines.
+        if (IsKeyPressed(KEY_F3))
+            gdata.linesToDraw.clear();
+    }
+
     gplayer.currentState->Update(dt);
 
     {
@@ -541,6 +637,14 @@ void DrawGameplayScreen() {
             DrawRope(from, gplayer.ropePos);
         }
     }
+    {  // Drawing lines 3D.
+        FOR_RANGE (int, i, gdata.linesToDraw.size() / 2) {
+            auto& p1 = gdata.linesToDraw[i * 2];
+            auto& p2 = gdata.linesToDraw[i * 2 + 1];
+            DrawLine3D(p1, p2, WHITE);
+        }
+        // gdata.linesToDraw.clear();
+    }
     EndMode3D();
 
     {  // Cross.
@@ -584,6 +688,7 @@ void DrawGameplayScreen() {
         gplayer.lookingDirection.y,
         gplayer.lookingDirection.z
     ));
+    DebugTextDraw(TextFormat("rope length %.2f", gplayer.ropeLength));
 }
 
 // Gameplay Screen Unload logic.

@@ -1,4 +1,5 @@
 #include <memory>
+#include <vector>
 
 #include "raylib_hack_windows.cpp"
 

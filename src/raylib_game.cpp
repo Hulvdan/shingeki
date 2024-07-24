@@ -1,4 +1,5 @@
-#include "assert.h"
+#pragma once
+
 #include <memory>
 
 #include "raylib.h"

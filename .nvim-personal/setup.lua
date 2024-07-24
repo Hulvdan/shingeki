@@ -79,6 +79,11 @@ vim.keymap.set("n", "<f5>", function()
     run_command(cli_command("stoopid_windows_visual_studio_run"))
 end, opts)
 
+-- Тесты.
+vim.keymap.set("n", "<A-t>", function()
+    run_command(cli_command("test"))
+end, opts)
+
 -- Отформатировать C++ код в репозитории.
 vim.keymap.set("n", "<A-S-f>", function()
     run_command(cli_command("format"))

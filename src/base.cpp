@@ -11,6 +11,15 @@
 #define scast static_cast
 #define rcast reinterpret_cast
 
+#ifdef TESTS
+#define Assert(expr) REQUIRE(expr)
+#define Assert_False(expr) REQUIRE_FALSE(expr)
+#else  // TESTS
+#include <cassert>
+#define Assert(expr) assert(expr)
+#define Assert_False(expr) assert(!((bool)(expr)))
+#endif  // TESTS
+
 using u8 = char;
 
 constexpr float floatInf = std::numeric_limits<float>::infinity();

@@ -69,7 +69,8 @@ LOG_FILE_POSITION = False
 PROJECT_DIR = Path(__file__).parent.parent
 CMD_DIR = Path("cmd")
 SOURCES_DIR = Path("sources")
-CMAKE_DEBUG_BUILD_DIR = Path(".cmake") / "vs17" / "Debug"
+CMAKE_DEBUG_GAME_BUILD_DIR = Path(".cmake") / "vs17" / "game" / "Debug"
+CMAKE_DEBUG_TESTS_BUILD_DIR = Path(".cmake") / "vs17" / "tests" / "Debug"
 
 CLANG_FORMAT_PATH = "C:/Program Files/LLVM/bin/clang-format.exe"
 CLANG_TIDY_PATH = "C:/Program Files/LLVM/bin/clang-tidy.exe"
@@ -189,20 +190,28 @@ def listfiles_with_hashes_in_dir(path: str | Path) -> dict[str, int]:
 # Индивидуальные задачи
 # ========================================
 def do_build() -> None:
-    run_command(
-        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3'
-    )
+    do_build_game()
+    do_build_tests()
 
 
 def do_build_game() -> None:
-    do_build()
-    # run_command(
-    #     rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -t:win32'
-    # )
+    run_command(
+        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -t:game'
+    )
+
+
+def do_build_tests() -> None:
+    run_command(
+        rf'"{MSBUILD_PATH}" .cmake\vs17\game.sln -v:minimal -property:WarningLevel=3 -t:tests'
+    )
 
 
 def do_run() -> None:
-    run_command(str(CMAKE_DEBUG_BUILD_DIR / "win32.exe"))
+    run_command(str(CMAKE_DEBUG_GAME_BUILD_DIR / "game.exe"))
+
+
+def do_test() -> None:
+    run_command(str(CMAKE_DEBUG_TESTS_BUILD_DIR / "tests.exe"))
 
 
 def do_format(specific_files: list[str]) -> None:
@@ -326,6 +335,12 @@ def action_stoopid_windows_visual_studio_run():
     do_build_game()
 
     do_run_vs_ahk()
+
+
+@app.command("test")
+def action_test():
+    do_build_tests()
+    do_test()
 
 
 @app.command("format")

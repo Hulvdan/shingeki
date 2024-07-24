@@ -7,7 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Dependencies
+#-----------------------------------------------------------------------------------
+# Dependencies.
+#-----------------------------------------------------------------------------------
+
 set(RAYLIB_VERSION 5.0)
 find_package(raylib ${RAYLIB_VERSION} QUIET) # QUIET or REQUIRED
 if (NOT raylib_FOUND) # If there's none, fetch and build raylib
@@ -26,9 +29,10 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
     endif()
 endif()
 
-# Our Project
-add_executable(${PROJECT_NAME})
-add_subdirectory(src)
+#-----------------------------------------------------------------------------------
+# Game.
+#-----------------------------------------------------------------------------------
+add_executable(${PROJECT_NAME} src/raylib_game.cpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
@@ -63,3 +67,23 @@ if (APPLE)
     target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
     target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
 endif()
+
+#-----------------------------------------------------------------------------------
+# Tests.
+#-----------------------------------------------------------------------------------
+add_executable(tests src/tests.cpp)
+target_compile_definitions(tests PRIVATE TESTS)
+
+set_target_properties(tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+
+#set(raylib_VERBOSE 1)
+target_link_libraries(tests raylib)
+
+# Checks if OSX and links appropriate frameworks (Only required on MacOS)
+if (APPLE)
+    target_link_libraries(tests "-framework IOKit")
+    target_link_libraries(tests "-framework Cocoa")
+    target_link_libraries(tests "-framework OpenGL")
+endif()
+

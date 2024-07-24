@@ -224,6 +224,32 @@ int signof(float value) {
     return 0;
 }
 
+Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDirection) {
+    const auto axis = Vector3CrossProduct(ropeDirection, Vector3Up);
+
+#if 1
+    // TODO: Нужно найти плоскость. Текущее решение - хреновое.
+    auto perp = Vector3Perpendicular(ropeDirection);
+#else
+    auto    d    = ropeDirection;
+    Vector3 v1   = {0, 1, -d.y / d.z};
+    Vector3 v2   = {1, -d.x / d.y, 0};
+    auto    perp = Vector3CrossProduct(v1, v2);
+#endif
+
+    auto angle = Vector3Angle(perp, velocity);
+    // angle *= signof(Vector3DotProduct(axis, perp));
+    // angle += PI / 2;
+
+    // TraceLog(LOG_INFO, TextFormat("angle to perp %.2f", angle));
+
+    // if (perp.x * perp.z < 0)
+    // angle += PI;
+
+    auto result = Vector3RotateByAxisAngle(velocity, -axis, angle);
+    return result;
+}
+
 PlayerState_Update_Function(Airborne_Update) {
     {  // Player camera rotation.
         const float sensitivity = 1.0f / 300.0f;
@@ -312,17 +338,9 @@ PlayerState_Update_Function(Airborne_Update) {
                 position
                     = ropePos + Vector3Normalize(position - ropePos) * gplayer.ropeLength;
 
-                const auto axis = Vector3CrossProduct(ropePos - position, Vector3Up);
-
-                // TODO: Нужно найти плоскость. Текущее решение - хреновое.
-                const auto perp = Vector3Perpendicular(ropePos - position);
-
-                const auto angle = Vector3Angle(perp, gplayer.velocity);
-
-                auto newVelocity
-                    = Vector3RotateByAxisAngle(gplayer.velocity, axis, angle);
-
-                gplayer.velocity = newVelocity;
+                gplayer.velocity = TransformVelocityBasedOnRopeDirection(
+                    gplayer.velocity, ropePos - position
+                );
             }
         }
     }
@@ -382,11 +400,38 @@ void InitGameplayScreen(Arena& arena) {
 
     // Tests
     // ------------------------------------------------------------
+    {
+        const Vector3 vel = {0, -1, 0};
+
+        auto t1 = TransformVelocityBasedOnRopeDirection(vel, {1, 1, 0});
+        auto t2 = TransformVelocityBasedOnRopeDirection(vel, {-1, 1, 0});
+        auto t3 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, 1});
+        auto t4 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, -1});
+
+        assert(t1.y < 0);
+        assert(t2.y < 0);
+        assert(t3.y < 0);
+        assert(t4.y < 0);
+
+        assert(t1.x > 0);
+        assert(FloatEquals(t1.z, 0));
+
+        assert(t2.x < 0);
+        assert(FloatEquals(t2.z, 0));
+
+        assert(t3.z > 0);
+        assert(FloatEquals(t3.x, 0));
+
+        assert(t4.z < 0);
+        assert(FloatEquals(t4.x, 0));
+    }
+
     assert(Floor(0, 20) == 0);
     assert(Floor(1, 20) == 0);
     assert(Floor(-1, 20) == -20);
     assert(Floor(20, 20) == 20);
     assert(Floor(21, 20) == 20);
+
     assert(CeilDivision(10, 1) == 10);
     assert(CeilDivision(10, 5) == 2);
     assert(CeilDivision(10, 6) == 2);

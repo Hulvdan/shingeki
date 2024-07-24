@@ -58,6 +58,9 @@ globalVar struct {
     const float jumpImpulse = 80.0f;  // m
     const float gravity     = -9.8f;  // m / s / s
     const float mass        = 10.0f;  // kg
+
+    const float boostAmount = 0.3f;
+    const float maxVelocity = 30.0f;
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -260,22 +263,11 @@ Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDire
         }
     }
 
-    auto axis = HorizontalAxisOf(ropeDirection);
-    // auto angle2 = GetLesserAngle(
-    // -Vector3Angle(Vector3Up, ropeDirection), -Vector3Angle(Vector3Down, ropeDirection)
-    // );
-    auto angle2   = -Vector3Angle(Vector3Up, ropeDirection);
+    auto axis     = HorizontalAxisOf(ropeDirection);
+    auto angle    = -Vector3Angle(Vector3Up, ropeDirection);
     auto pRotated = Vector3Normalize(
-        Vector3RotateByAxisAngle({ropeDirection.x, 0, ropeDirection.z}, axis, angle2)
+        Vector3RotateByAxisAngle({ropeDirection.x, 0, ropeDirection.z}, axis, angle)
     );
-
-    // auto angle3                     = Vector3Angle(velocity, ropeDirection) - PI / 2;
-    // auto velocityProjectedToRopeDir = Vector3RotateByAxisAngle(velocity, axis,
-    // angle3);
-    //
-    // if ((signof(pRotated.z) != signof(velocityProjectedToRopeDir.z))
-    //     || (signof(pRotated.x) != signof(velocityProjectedToRopeDir.x)))
-    //     pRotated *= -1;
 
     if (gdata.gizmosEnabled) {
         gdata.linesToDraw.push_back(gplayer.position + pRotated);
@@ -283,31 +275,8 @@ Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDire
         gdata.colorsOfLines.push_back(RED);
     }
 
-    // auto angle = Vector3Angle(velocity, pRotated);
-
-    auto l = Vector3Length(velocity);
     return pRotated * Vector3DotProduct(pRotated, velocity)
            + axis * Vector3DotProduct(axis, velocity);
-
-    auto a0    = Vector3Angle(velocity, pRotated);
-    auto a1    = Vector3Angle(-velocity, pRotated);
-    auto angle = GetLesserAngle(a0, a1);
-
-    // Vector3 axis = HorizontalAxisOf(pRotated);
-    if (angle == a1)
-        axis = -axis;
-    // axis = HorizontalAxisOf(-pRotated);
-    // auto angle2 = -Vector3Angle(Vector3Up, ropeDirection);
-    // auto angle     = PI / 2 - Vector3Angle(Vector3Up, perp);
-    auto result = Vector3RotateByAxisAngle(velocity, axis, angle / 2.0f);
-
-    if (gdata.gizmosEnabled) {
-        gdata.linesToDraw.push_back(gplayer.position);
-        gdata.linesToDraw.push_back(gplayer.position + Vector3Normalize(result));
-        gdata.colorsOfLines.push_back(GREEN);
-    }
-
-    return result;
 }
 
 TEST_CASE ("TransformVelocityBasedOnRopeDirection") {
@@ -439,21 +408,24 @@ PlayerState_Update_Function(Airborne_Update) {
     }
 
     {  // Movement.
+        if (IsKeyDown(KEY_V)) {
+            gplayer.velocity = Vector3ExponentialDecay(
+                gplayer.velocity, Vector3Zero(), -gplayer.boostAmount, dt
+            );
+            gplayer.velocity
+                = Vector3Normalize(gplayer.velocity)
+                  * Min(gplayer.maxVelocity, Vector3Length(gplayer.velocity));
+        }
         auto& position = gplayer.position;
 
         auto oldPos = position;
         position += gplayer.velocity * dt;
 
-        // gplayer.velocity
-        //     = Vector3ExponentialDecay(gplayer.velocity, Vector3Zero(), 0.1f, dt);
-
         if (gplayer.ropeActivated) {
             auto& ropePos = gplayer.ropePos;
 
-            // float oldDist = Vector3Distance(oldPos, ropePos);
             float newDist = Vector3Distance(position, ropePos);
 
-            // bool  oldDistanceIsSufficient = oldDist <= gplayer.ropeLength;
             bool newDistanceIsSufficient = newDist <= gplayer.ropeLength;
             if (!newDistanceIsSufficient) {
                 position
@@ -686,7 +658,11 @@ void DrawGameplayScreen() {
         "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y, gplayer.position.z
     ));
     DebugTextDraw(TextFormat(
-        "vel %.2f %.2f %.2f", gplayer.velocity.x, gplayer.velocity.y, gplayer.velocity.z
+        "vel (%.2f) %.2f %.2f %.2f",
+        Vector3Length(gplayer.velocity),
+        gplayer.velocity.x,
+        gplayer.velocity.y,
+        gplayer.velocity.z
     ));
     DebugTextDraw(TextFormat(
         "look %.2f %.2f %.2f",

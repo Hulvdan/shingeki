@@ -31,9 +31,9 @@ struct Arena {
 // https://youtu.be/MvDUe2evkHg?list=PLEMXAbCVnmY6Azbmzj3BiC3QRYHE9QoG7&t=2121
 //
 u8* Allocate_(Arena& arena, size_t size) {
-    assert(size > 0);
-    assert(arena.size >= size);
-    assert(arena.used <= arena.size - size);
+    Assert(size > 0);
+    Assert(arena.size >= size);
+    Assert(arena.used <= arena.size - size);
 
     u8* result = arena.base + arena.used;
     arena.used += size;
@@ -47,8 +47,8 @@ u8* AllocateZeros_(Arena& arena, size_t size) {
 }
 
 void Deallocate_(Arena& arena, size_t size) {
-    assert(size > 0);
-    assert(arena.used >= size);
+    Assert(size > 0);
+    Assert(arena.used >= size);
     arena.used -= size;
 }
 

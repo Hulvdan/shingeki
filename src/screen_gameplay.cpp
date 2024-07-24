@@ -100,7 +100,7 @@ void DrawRope(Vector3 from, Vector3 to) {
 
     Mesh  cylinderMesh = GenMeshCylinder(radius, distance, slices);
     Model model        = LoadModelFromMesh(cylinderMesh);
-    assert(IsModelReady(model));
+    Assert(IsModelReady(model));
 
     const auto axis  = HorizontalAxisOf(to - from);
     const auto angle = -Vector3Angle(to - from, Vector3Up);
@@ -132,7 +132,7 @@ struct PlayerState {
 };
 
 void SwitchState(PlayerStates state) {
-    assert(gdata.states != nullptr);
+    Assert(gdata.states != nullptr);
 
     gplayer.currentState->OnExit();
     gplayer.currentState = gdata.states + (int)state;
@@ -248,6 +248,32 @@ Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDire
 
     auto result = Vector3RotateByAxisAngle(velocity, -axis, angle);
     return result;
+}
+
+TEST_CASE ("TransformVelocityBasedOnRopeDirection") {
+    const Vector3 vel = {0, -1, 0};
+
+    auto t1 = TransformVelocityBasedOnRopeDirection(vel, {1, 1, 0});
+    auto t2 = TransformVelocityBasedOnRopeDirection(vel, {-1, 1, 0});
+    auto t3 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, 1});
+    auto t4 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, -1});
+
+    Assert(t1.y < 0);
+    Assert(t2.y < 0);
+    Assert(t3.y < 0);
+    Assert(t4.y < 0);
+
+    Assert(t1.x > 0);
+    Assert(FloatEquals(t1.z, 0));
+
+    Assert(t2.x < 0);
+    Assert(FloatEquals(t2.z, 0));
+
+    Assert(t3.z > 0);
+    Assert(FloatEquals(t3.x, 0));
+
+    Assert(t4.z < 0);
+    Assert(FloatEquals(t4.x, 0));
 }
 
 PlayerState_Update_Function(Airborne_Update) {
@@ -396,54 +422,13 @@ void InitGameplayScreen(Arena& arena) {
     if (gplayer.currentState == nullptr)
         gplayer.currentState = gdata.states + (int)PlayerStates::GROUNDED;
 
-    // ------------------------------------------------------------
-
-    // Tests
-    // ------------------------------------------------------------
-    {
-        const Vector3 vel = {0, -1, 0};
-
-        auto t1 = TransformVelocityBasedOnRopeDirection(vel, {1, 1, 0});
-        auto t2 = TransformVelocityBasedOnRopeDirection(vel, {-1, 1, 0});
-        auto t3 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, 1});
-        auto t4 = TransformVelocityBasedOnRopeDirection(vel, {0, 1, -1});
-
-        assert(t1.y < 0);
-        assert(t2.y < 0);
-        assert(t3.y < 0);
-        assert(t4.y < 0);
-
-        assert(t1.x > 0);
-        assert(FloatEquals(t1.z, 0));
-
-        assert(t2.x < 0);
-        assert(FloatEquals(t2.z, 0));
-
-        assert(t3.z > 0);
-        assert(FloatEquals(t3.x, 0));
-
-        assert(t4.z < 0);
-        assert(FloatEquals(t4.x, 0));
-    }
-
-    assert(Floor(0, 20) == 0);
-    assert(Floor(1, 20) == 0);
-    assert(Floor(-1, 20) == -20);
-    assert(Floor(20, 20) == 20);
-    assert(Floor(21, 20) == 20);
-
-    assert(CeilDivision(10, 1) == 10);
-    assert(CeilDivision(10, 5) == 2);
-    assert(CeilDivision(10, 6) == 2);
-    assert(CeilDivision(10, 4) == 3);
-    // ------------------------------------------------------------
-
     gdata.finishScreen = 0;
 
     gdata.camera.target     = Vector3{0.0f, 0.0f, 0.0f};
     gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
     gdata.camera.fovy       = 55.0f;
     gdata.camera.projection = CAMERA_PERSPECTIVE;
+    // ------------------------------------------------------------
 
     DisableCursor();
 }

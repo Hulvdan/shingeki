@@ -44,6 +44,9 @@ add_custom_command(
 
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    DOCTEST_CONFIG_DISABLE
+)
 
 # Web Configurations
 if (${PLATFORM} STREQUAL "Web")

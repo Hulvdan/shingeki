@@ -1,9 +1,11 @@
-#pragma once
-
 #include <memory>
+
+#include "raylib_hack_windows.cpp"
 
 #include "raylib.h"
 #include "raymath.h"
+
+#include "doctest.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "raylib_vector2.cpp"
@@ -51,6 +53,7 @@ void DrawTransition();
 // Update and draw one frame
 void UpdateDrawFrame(Arena& arena);
 
+#ifndef TESTS
 int main() {
     // Initialization
     //---------------------------------------------------------
@@ -129,6 +132,7 @@ int main() {
 
     return 0;
 }
+#endif
 
 //----------------------------------------------------------------------------------
 // Module specific Functions Definition

@@ -78,18 +78,11 @@ Keyboard:
 ![](screenshots/screenshot003.png)
 ![](screenshots/screenshot004.png)
 ![](screenshots/screenshot005.png)
-
-### Developers
-
- - $(Developer 01) - $(Role/Tasks Developed)
- - $(Developer 02) - $(Role/Tasks Developed)
- - $(Developer 03) - $(Role/Tasks Developed)
+![](screenshots/screenshot006.png)
 
 ### Links
 
- - YouTube Gameplay: $(YouTube Link)
- - itch.io Release: $(itch.io Game Page)
- - Steam Release: $(Steam Game Page)
+ - YouTube Gameplay: https://youtu.be/B1DtJOT7c9s
 
 ### License
 

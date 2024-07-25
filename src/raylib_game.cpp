@@ -5,6 +5,7 @@
 
 #include "raylib.h"
 #include "raymath.h"
+#include "partikel.h"
 
 #include "doctest.h"
 

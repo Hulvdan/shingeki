@@ -47,15 +47,15 @@ void DebugTextDraw(const char* text, Color color = RED) {
 }
 
 void ButtonTextDraw(const char* text, double* pressedAt, bool enabled) {
-    const float activatedDuration = 0.2f;
+    const float activatedDuration = 0.4f;
     const auto  t                 = GetTime();
 
     Color color = WHITE;
-    if (*pressedAt + activatedDuration > t)
-        color = ORANGE;
-
     if (!enabled)
         color = GRAY;
+
+    if (*pressedAt + activatedDuration > t)
+        color = ORANGE;
 
     DebugTextDraw(text, color);
 }

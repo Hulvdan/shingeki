@@ -71,12 +71,13 @@ globalVar struct {
 
     const float boostSoundInterval = 0.13f;
 
+    const float airSpeed    = 2.0f;
     const float speed       = 10.0f;  // m / s
     const float jumpImpulse = 80.0f;  // m
     const float gravity     = -5.0f;  // m / s / s
     const float mass        = 10.0f;  // kg
 
-    const float boostAmount = 1.3f;
+    const float boostAmount = 5.3f;
     const float maxVelocity = 28.0f;
     const float dashImpulse = 200.0f;
 
@@ -403,39 +404,34 @@ PlayerState_Update_Function(Airborne_Update) {
         gplayer.lookingDirection = direction;
     }
 
-    // {  // Player movement direction calculation.
-    //     gplayer.velocity.x = 0;
-    //     gplayer.velocity.z = 0;
-    //
-    //     const Vector2 lookingHorizontalDirection
-    //         = {gplayer.lookingDirection.x, gplayer.lookingDirection.z};
-    //
-    //     const auto controlVector = GetPlayerMovementControlVector();
-    //
-    //     if (controlVector.x != 0 || controlVector.y != 0) {
-    //         const auto angle = atan2f(controlVector.y, controlVector.x);
-    //
-    //         const auto dHoriz = Vector2Rotate(lookingHorizontalDirection, PI / 2 +
-    //         angle)
-    //                             * gplayer.speed;
-    //
-    //         gplayer.velocity += Vector3(dHoriz.x, 0, dHoriz.y);
-    //     }
-    // }
+    {  // Player movement direction calculation.
+        auto controlVector = GetPlayerMovementControlVector();
+        controlVector.y *= -1;
 
-    if (IsMouseButtonPressed(0)) {
-        if (gplayer.ropeActivated) {
-            gplayer.ropeActivated = false;
-            PlaySound(gdata.fxGrappleBack);
-            gplayer.buttonGrapplePressedTime = GetTime();
+        auto axis = HorizontalAxisOf(gplayer.lookingDirection);
+
+        // TODO: Возможно, стоит ограничивать только ограничения по
+        // направлению обратному гравитации, когда игрок не использует буст.
+        if (!IsKeyDown(KEY_V))
+            controlVector.y = Max(0, controlVector.y);
+
+        const auto controlVector3 = Vector3(controlVector.x, 0, controlVector.y);
+
+        auto d = gplayer.lookingDirection * (controlVector.y * gplayer.airSpeed * dt)
+                 + axis * (controlVector.x * gplayer.airSpeed * dt);
+
+        if (IsKeyDown(KEY_V)) {
+            const auto t = GetTime();
+            if (t - gplayer.lastBoostTime > gplayer.boostSoundInterval) {
+                PlaySound(gdata.fxBoost);
+                gplayer.lastBoostTime = t;
+            }
+
+            gplayer.buttonBoostPressedTime = t;
+            d *= gplayer.boostAmount;
         }
-        else if (gplayer.collided) {
-            gplayer.ropeActivated = true;
-            gplayer.ropePos       = gplayer.lookingAtCollision;
-            gplayer.ropeLength    = Vector3Distance(gplayer.ropePos, gplayer.position);
-            PlaySound(gdata.fxGrapple);
-            gplayer.buttonGrapplePressedTime = GetTime();
-        }
+
+        gplayer.velocity += d;
     }
 
     {  // gravity.
@@ -459,20 +455,22 @@ PlayerState_Update_Function(Airborne_Update) {
 
     SetSoundVolume(gdata.fxBoost, Vector3Length(gplayer.velocity) / gplayer.maxVelocity);
 
-    {  // Movement.
-        if (IsKeyDown(KEY_V)) {
-            const auto t = GetTime();
-            if (t - gplayer.lastBoostTime > gplayer.boostSoundInterval) {
-                PlaySound(gdata.fxBoost);
-                gplayer.lastBoostTime = t;
-            }
-
-            gplayer.buttonBoostPressedTime = t;
-            gplayer.velocity               = Vector3ExponentialDecay(
-                gplayer.velocity, Vector3Zero(), -gplayer.boostAmount, dt
-            );
+    if (IsMouseButtonPressed(0)) {
+        if (gplayer.ropeActivated) {
+            gplayer.ropeActivated = false;
+            PlaySound(gdata.fxGrappleBack);
+            gplayer.buttonGrapplePressedTime = GetTime();
         }
+        else if (gplayer.collided) {
+            gplayer.ropeActivated = true;
+            gplayer.ropePos       = gplayer.lookingAtCollision;
+            gplayer.ropeLength    = Vector3Distance(gplayer.ropePos, gplayer.position);
+            PlaySound(gdata.fxGrapple);
+            gplayer.buttonGrapplePressedTime = GetTime();
+        }
+    }
 
+    {  // Movement.
         // Clamping velocity.
         gplayer.velocity = Vector3Normalize(gplayer.velocity)
                            * Min(gplayer.maxVelocity, Vector3Length(gplayer.velocity));
@@ -820,7 +818,7 @@ void DrawGameplayScreen() {
     ButtonTextDraw("SPACE - Jump", &gplayer.buttonJumpPressedTime, !isAirborne);
     ButtonTextDraw("LMB - Grapple", &gplayer.buttonGrapplePressedTime, isAirborne);
     ButtonTextDraw("RMB - Dash", &gplayer.buttonDashPressedTime, isAirborne);
-    // ButtonTextDraw("V - Apply Boost", &gplayer.buttonBoostPressedTime);
+    ButtonTextDraw("V - Apply Boost", &gplayer.buttonBoostPressedTime, isAirborne);
     // ButtonTextDraw("F3 - Clear Gizmos", &gplayer.buttonClearPathsPressedTime);
 }
 

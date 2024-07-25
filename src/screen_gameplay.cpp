@@ -71,13 +71,14 @@ globalVar struct {
 
     const float boostSoundInterval = 0.13f;
 
-    const float airSpeed    = 2.0f;
-    const float speed       = 10.0f;  // m / s
-    const float jumpImpulse = 80.0f;  // m
-    const float gravity     = -5.0f;  // m / s / s
-    const float mass        = 10.0f;  // kg
+    const float airSpeed      = 2.0f;
+    const float speed         = 10.0f;   // m / s
+    const float jumpImpulse   = 80.0f;   // m
+    const float gravity       = -10.0f;  // m / s / s
+    const float velocityDecay = 0.1f;
+    const float mass          = 10.0f;  // kg
 
-    const float boostAmount = 5.3f;
+    const float boostAmount = 3.3f;
     const float maxVelocity = 28.0f;
     const float dashImpulse = 200.0f;
 
@@ -471,6 +472,11 @@ PlayerState_Update_Function(Airborne_Update) {
     }
 
     {  // Movement.
+        // Decaying velocity.
+        gplayer.velocity = Vector3ExponentialDecay(
+            gplayer.velocity, Vector3Zero(), gplayer.velocityDecay, dt
+        );
+
         // Clamping velocity.
         gplayer.velocity = Vector3Normalize(gplayer.velocity)
                            * Min(gplayer.maxVelocity, Vector3Length(gplayer.velocity));

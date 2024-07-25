@@ -241,24 +241,34 @@ Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDire
         };
         const int pointIndices[] = {0, 1, 1, 2, 2, 3, 3, 0, 1, 3, 0, 2};
 
-        FOR_RANGE (int, i, 6) {
-            auto p1 = points[pointIndices[i * 2]];
-            auto p2 = points[pointIndices[i * 2 + 1]];
-
-            auto axis      = HorizontalAxisOf(ropeDirection);
-            auto angle     = -Vector3Angle(Vector3Up, ropeDirection);
-            auto p1Rotated = Vector3RotateByAxisAngle(p1, axis, angle);
-            auto p2Rotated = Vector3RotateByAxisAngle(p2, axis, angle);
-
-            if (gdata.gizmosEnabled) {
-                gdata.linesToDraw.push_back(gplayer.position + p1Rotated);
-                gdata.linesToDraw.push_back(gplayer.position + p2Rotated);
-                gdata.colorsOfLines.push_back(WHITE);
-            }
-        }
+        // FOR_RANGE (int, i, 6) {
+        //     auto p1 = points[pointIndices[i * 2]];
+        //     auto p2 = points[pointIndices[i * 2 + 1]];
+        //
+        //     auto axis      = HorizontalAxisOf(ropeDirection);
+        //     auto angle     = -Vector3Angle(Vector3Up, ropeDirection);
+        //     auto p1Rotated = Vector3RotateByAxisAngle(p1, axis, angle);
+        //     auto p2Rotated = Vector3RotateByAxisAngle(p2, axis, angle);
+        //
+        //     if (gdata.gizmosEnabled) {
+        //         gdata.linesToDraw.push_back(gplayer.position + p1Rotated);
+        //         gdata.linesToDraw.push_back(gplayer.position + p2Rotated);
+        //         gdata.colorsOfLines.push_back(WHITE);
+        //     }
+        // }
         if (gdata.gizmosEnabled) {
             gdata.linesToDraw.push_back(gplayer.position);
+            gdata.linesToDraw.push_back(
+                gplayer.position
+                + Vector3Normalize(gplayer.ropePos - gplayer.position) * 0.2f
+            );
+            gdata.colorsOfLines.push_back(WHITE);
+
             gdata.linesToDraw.push_back(gplayer.ropePos);
+            gdata.linesToDraw.push_back(
+                gplayer.ropePos
+                + Vector3Normalize(gplayer.position - gplayer.ropePos) * 0.2f
+            );
             gdata.colorsOfLines.push_back(WHITE);
         }
     }
@@ -269,14 +279,20 @@ Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDire
         Vector3RotateByAxisAngle({ropeDirection.x, 0, ropeDirection.z}, axis, angle)
     );
 
+    auto result = pRotated * Vector3DotProduct(pRotated, velocity)
+                  + axis * Vector3DotProduct(axis, velocity);
+
     if (gdata.gizmosEnabled) {
-        gdata.linesToDraw.push_back(gplayer.position + pRotated);
+        // gdata.linesToDraw.push_back(gplayer.position + pRotated);
+        // gdata.linesToDraw.push_back(gplayer.position);
+        // gdata.colorsOfLines.push_back(RED);
+
+        gdata.linesToDraw.push_back(gplayer.position + Vector3Normalize(result));
         gdata.linesToDraw.push_back(gplayer.position);
-        gdata.colorsOfLines.push_back(RED);
+        gdata.colorsOfLines.push_back(GREEN);
     }
 
-    return pRotated * Vector3DotProduct(pRotated, velocity)
-           + axis * Vector3DotProduct(axis, velocity);
+    return result;
 }
 
 TEST_CASE ("TransformVelocityBasedOnRopeDirection") {

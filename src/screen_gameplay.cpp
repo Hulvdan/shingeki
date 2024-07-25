@@ -1,6 +1,18 @@
 static constexpr int fpsValues[] = {60, 20, 40};
+#include <sstream>
 
 struct PlayerState;
+
+struct Vector3Int {
+    int x;
+    int y;
+    int z;
+};
+
+struct CubeVoxel {
+    Vector3Int pos;
+    int        colorIndex;
+};
 
 globalVar struct {
     int  currentFPSValueIndex = 0;
@@ -13,25 +25,15 @@ globalVar struct {
     PlayerState* states = nullptr;
 
     Sound  fxJump;
+    Sound  fxBoost;
+    Sound  fxDash;
+    Sound  fxGrapple;
+    Sound  fxGrappleBack;
     int    fxFootstepsCount = 0;
     Sound* fxFootsteps      = nullptr;
 
-    struct {
-        Vector3 pos;
-        Vector3 size;
-        Color   color;
-    } cubes[10] = {
-        {{11, 3, 8}, {2, 6, 2}, GREEN},
-        {{16, 3, 3}, {2, 6, 2}, BLUE},
-        {{-15, 4, 11}, {2, 8, 2}, YELLOW},
-        {{3, 2, -10}, {2, 4, 2}, RED},
-        {{19, 1, 13}, {2, 2, 2}, MAGENTA},
-        {{6, 3, 13}, {2, 6, 2}, MAGENTA},
-        {{11, 6, 16}, {1, 12, 1}, GRAY},
-        {{-25, 8, 11}, {2, 16, 2}, YELLOW},
-        {{-25, 12, 16}, {2, 1, 8}, YELLOW},
-        {{-25, 8, 21}, {2, 16, 2}, YELLOW},
-    };
+    std::vector<CubeVoxel> cubes;
+    std::vector<Color>     colors;
 
     std::vector<Vector3> linesToDraw;
     std::vector<Color>   colorsOfLines;
@@ -54,13 +56,30 @@ globalVar struct {
     float   ropeLength    = 0;
     Vector3 ropePos       = {};
 
+    double buttonGrapplePressedTime    = -floatInf;
+    double buttonJumpPressedTime       = -floatInf;
+    double buttonBoostPressedTime      = -floatInf;
+    double buttonDashPressedTime       = -floatInf;
+    double buttonClearPathsPressedTime = -floatInf;
+
+    double       lastBoostTime                = -floatInf;
+    double       lastDashTime                 = -floatInf;
+    const double fromDefaultToDashFovDuration = 0.1;
+    const double fromDashToDefaultFovDuration = 1.0;
+    const float  defaultFov                   = 55.0f;
+    const float  dashedFov                    = 75.0f;
+
+    const float boostSoundInterval = 0.13f;
+
     const float speed       = 10.0f;  // m / s
     const float jumpImpulse = 80.0f;  // m
-    const float gravity     = -9.8f;  // m / s / s
+    const float gravity     = -5.0f;  // m / s / s
     const float mass        = 10.0f;  // kg
 
-    const float boostAmount = 0.3f;
-    const float maxVelocity = 30.0f;
+    const float boostAmount = 1.3f;
+    const float maxVelocity = 28.0f;
+    const float dashImpulse = 200.0f;
+
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -98,7 +117,8 @@ Vector3 DisplaceToTheSide(Vector3 value, float displacement) {
 }
 
 void DrawRope(Vector3 from, Vector3 to) {
-    const auto distance = Vector3Distance(to, from);
+    const Color color    = {211, 202, 181, 255};
+    const auto  distance = Vector3Distance(to, from);
 
     const auto  middlePoint = (from + to) / 2.0f;
     const int   slices      = 16;
@@ -111,9 +131,9 @@ void DrawRope(Vector3 from, Vector3 to) {
     const auto axis  = HorizontalAxisOf(to - from);
     const auto angle = -Vector3Angle(to - from, Vector3Up);
 
-    DrawModelEx(model, from, axis, angle * RAD2DEG, Vector3One(), YELLOW);
+    DrawModelEx(model, from, axis, angle * RAD2DEG, Vector3One(), color);
     if (gdata.gizmosEnabled)
-        DrawModelWiresEx(model, from, axis, angle * RAD2DEG, Vector3One(), MAROON);
+        DrawModelWiresEx(model, from, axis, angle * RAD2DEG, Vector3One(), BLACK);
 
     UnloadModel(model);
 }
@@ -203,6 +223,7 @@ PlayerState_Update_Function(Grounded_Update) {
 
     {  // Jumping.
         if (IsKeyPressed(KEY_SPACE)) {
+            gplayer.buttonJumpPressedTime = GetTime();
             gplayer.velocity
                 += ApplyImpulse(Vector3Up, gplayer.mass, gplayer.jumpImpulse);
 
@@ -405,33 +426,57 @@ PlayerState_Update_Function(Airborne_Update) {
     if (IsMouseButtonPressed(0)) {
         if (gplayer.ropeActivated) {
             gplayer.ropeActivated = false;
+            PlaySound(gdata.fxGrappleBack);
+            gplayer.buttonGrapplePressedTime = GetTime();
         }
         else if (gplayer.collided) {
             gplayer.ropeActivated = true;
             gplayer.ropePos       = gplayer.lookingAtCollision;
             gplayer.ropeLength    = Vector3Distance(gplayer.ropePos, gplayer.position);
+            PlaySound(gdata.fxGrapple);
+            gplayer.buttonGrapplePressedTime = GetTime();
         }
     }
-
-    // if (gplayer.ropeActivated) {
-    //     if (!IsMouseButtonDown(0)) {
-    //         gplayer.ropeActivated = false;
-    //     }
-    // }
 
     {  // gravity.
         gplayer.velocity.y += dt * gplayer.gravity;
     }
 
+    {  // Dashing.
+        if (IsMouseButtonPressed(1)) {
+            auto l           = Vector3Length(gplayer.velocity);
+            gplayer.velocity = gplayer.lookingDirection * l;
+
+            gplayer.velocity += ApplyImpulse(
+                gplayer.lookingDirection, gplayer.mass, gplayer.dashImpulse
+            );
+
+            gplayer.lastDashTime          = GetTime();
+            gplayer.buttonDashPressedTime = GetTime();
+            PlaySound(gdata.fxDash);
+        }
+    }
+
+    SetSoundVolume(gdata.fxBoost, Vector3Length(gplayer.velocity) / gplayer.maxVelocity);
+
     {  // Movement.
         if (IsKeyDown(KEY_V)) {
-            gplayer.velocity = Vector3ExponentialDecay(
+            const auto t = GetTime();
+            if (t - gplayer.lastBoostTime > gplayer.boostSoundInterval) {
+                PlaySound(gdata.fxBoost);
+                gplayer.lastBoostTime = t;
+            }
+
+            gplayer.buttonBoostPressedTime = t;
+            gplayer.velocity               = Vector3ExponentialDecay(
                 gplayer.velocity, Vector3Zero(), -gplayer.boostAmount, dt
             );
-            gplayer.velocity
-                = Vector3Normalize(gplayer.velocity)
-                  * Min(gplayer.maxVelocity, Vector3Length(gplayer.velocity));
         }
+
+        // Clamping velocity.
+        gplayer.velocity = Vector3Normalize(gplayer.velocity)
+                           * Min(gplayer.maxVelocity, Vector3Length(gplayer.velocity));
+
         auto& position = gplayer.position;
 
         auto oldPos = position;
@@ -500,7 +545,11 @@ void InitGameplayScreen(Arena& arena) {
             );
         }
     }
-    gdata.fxJump = LoadSound("resources/screens/gameplay/jump.wav");
+    gdata.fxBoost       = LoadSound("resources/screens/gameplay/boost.wav");
+    gdata.fxJump        = LoadSound("resources/screens/gameplay/jump.wav");
+    gdata.fxDash        = LoadSound("resources/screens/gameplay/dash.wav");
+    gdata.fxGrapple     = LoadSound("resources/screens/gameplay/grapple.wav");
+    gdata.fxGrappleBack = LoadSound("resources/screens/gameplay/grappleBack.wav");
 
     if (gplayer.currentState == nullptr)
         gplayer.currentState = gdata.states + (int)PlayerStates::GROUNDED;
@@ -509,9 +558,47 @@ void InitGameplayScreen(Arena& arena) {
 
     gdata.camera.target     = Vector3{0.0f, 0.0f, 0.0f};
     gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
-    gdata.camera.fovy       = 55.0f;
+    gdata.camera.fovy       = gplayer.defaultFov;
     gdata.camera.projection = CAMERA_PERSPECTIVE;
     // ------------------------------------------------------------
+
+    {  // Loading level.
+        char* data = LoadFileText("resources/screens/gameplay/level.txt");
+
+        std::istringstream iss(data);
+
+        int colorsCount = 0;
+        iss >> colorsCount;
+        gdata.colors.reserve(colorsCount);
+
+        FOR_RANGE (int, i, colorsCount) {
+            int r, g, b = 0;
+            iss >> r;
+            iss >> g;
+            iss >> b;
+            gdata.colors.push_back(Color{
+                (unsigned char)r,
+                (unsigned char)g,
+                (unsigned char)b,
+                255,
+            });
+        }
+
+        int cubesCount = 0;
+        iss >> cubesCount;
+        gdata.cubes.reserve(cubesCount);
+
+        FOR_RANGE (int, i, cubesCount) {
+            int x, y, z, colorIndex = 0;
+            iss >> x;
+            iss >> y;
+            iss >> z;
+            iss >> colorIndex;
+            gdata.cubes.push_back({x, y, z, colorIndex});
+        }
+
+        UnloadFileText(data);
+    }
 
     DisableCursor();
 }
@@ -542,6 +629,7 @@ void UpdateGameplayScreen() {
 
     {  // Removing temporary debug lines.
         if (IsKeyPressed(KEY_F3)) {
+            gplayer.buttonClearPathsPressedTime = GetTime();
             gdata.linesToDraw.clear();
             gdata.colorsOfLines.clear();
         }
@@ -561,11 +649,12 @@ void UpdateGameplayScreen() {
 
         Ray ray = {gplayer.position + Vector3Up * 2.0f, gplayer.lookingDirection};
 
-        int cubesCount = sizeof(gdata.cubes) / sizeof(gdata.cubes[0]);
-        FOR_RANGE (int, i, cubesCount) {
-            const auto cube = gdata.cubes[i];
+        FOR_RANGE (int, i, gdata.cubes.size()) {
+            const auto& cube = gdata.cubes[i];
 
-            BoundingBox box = {cube.pos - cube.size / 2.0f, cube.pos + cube.size / 2.0f};
+            const auto cubePos
+                = Vector3((float)cube.pos.x, (float)cube.pos.y, (float)cube.pos.z);
+            BoundingBox box = {cubePos, cubePos + Vector3One()};
 
             RayCollision collision = GetRayCollisionBox(ray, box);
 
@@ -605,17 +694,51 @@ void DrawGameplayScreen() {
     camera.position = gplayer.position + Vector3Up * 2.0f;
     camera.target   = camera.position + gplayer.lookingDirection * 100.0f;
 
+    {  // FOV.
+        const double dashElapsed = GetTime() - gplayer.lastDashTime;
+        const bool   isDefault   = dashElapsed
+                               > (gplayer.fromDefaultToDashFovDuration
+                                  + gplayer.fromDashToDefaultFovDuration);
+
+        if (isDefault) {
+            camera.fovy = gplayer.defaultFov;
+        }
+        else {
+            if (dashElapsed < gplayer.fromDefaultToDashFovDuration) {
+                camera.fovy = Clamp(
+                    Lerp(
+                        gplayer.defaultFov,
+                        gplayer.dashedFov,
+                        dashElapsed / gplayer.fromDefaultToDashFovDuration
+                    ),
+                    Min(gplayer.defaultFov, gplayer.dashedFov),
+                    Max(gplayer.defaultFov, gplayer.dashedFov)
+                );
+            }
+            else {
+                camera.fovy = Clamp(
+                    Lerp(
+                        gplayer.dashedFov,
+                        gplayer.defaultFov,
+                        (dashElapsed - gplayer.fromDefaultToDashFovDuration)
+                            / gplayer.fromDashToDefaultFovDuration
+                    ),
+                    Min(gplayer.defaultFov, gplayer.dashedFov),
+                    Max(gplayer.defaultFov, gplayer.dashedFov)
+                );
+            }
+        }
+    }
+
     BeginMode3D(camera);
     {  // Drawing world.
-        int cubesCount = sizeof(gdata.cubes) / sizeof(gdata.cubes[0]);
-
-        FOR_RANGE (int, i, cubesCount) {
-            const auto  cube = gdata.cubes[i];
-            const auto& pos  = cube.pos;
-            const auto& size = cube.size;
-
-            DrawCubeV(pos, size, cube.color);
-            DrawCubeWiresV(pos, size, MAROON);
+        FOR_RANGE (int, i, gdata.cubes.size()) {
+            const auto& cube = gdata.cubes[i];
+            const auto& pos  = Vector3(cube.pos.x, cube.pos.y, cube.pos.z);
+            DrawCubeV(
+                pos + Vector3One() / 2.0f, Vector3One(), gdata.colors[cube.colorIndex]
+            );
+            DrawCubeWiresV(pos + Vector3One() / 2.0f, Vector3One(), BLACK);
         }
 
         DrawGrid(100, 1.0f);
@@ -642,7 +765,8 @@ void DrawGameplayScreen() {
     EndMode3D();
 
     {  // Cross.
-        const int size = 20;
+        const int size  = 20;
+        const int width = 4;
 
         auto color = WHITE;
         if (gplayer.collided)
@@ -650,43 +774,54 @@ void DrawGameplayScreen() {
         if (gplayer.ropeActivated)
             color = RED;
 
-        DrawLine(
-            screenWidth / 2,
-            (screenHeight - size) / 2,
-            screenWidth / 2,
-            (screenHeight + size) / 2,
-            color
+        DrawRectangle(
+            screenWidth / 2 - size / 2, screenHeight / 2 - width / 2, size, width, color
         );
-        DrawLine(
-            (screenWidth - size) / 2,
-            screenHeight / 2,
-            (screenWidth + size) / 2,
-            screenHeight / 2,
-            color
+        DrawRectangle(
+            screenWidth / 2 - width / 2, screenHeight / 2 - size / 2, width, size, color
+        );
+
+        DrawRectangleLines(
+            screenWidth / 2 - size / 2, screenHeight / 2 - width / 2, size, width, BLACK
+        );
+        DrawRectangleLines(
+            screenWidth / 2 - width / 2, screenHeight / 2 - size / 2, width, size, BLACK
         );
     }
 
-    DebugTextDraw(
-        TextFormat("FPS: %i (press F1 to change)", fpsValues[gdata.currentFPSValueIndex])
-    );
-    DebugTextDraw("Toggle gizmos - F2");
-    DebugTextDraw(TextFormat(
-        "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y, gplayer.position.z
-    ));
-    DebugTextDraw(TextFormat(
-        "vel (%.2f) %.2f %.2f %.2f",
-        Vector3Length(gplayer.velocity),
-        gplayer.velocity.x,
-        gplayer.velocity.y,
-        gplayer.velocity.z
-    ));
-    DebugTextDraw(TextFormat(
-        "look %.2f %.2f %.2f",
-        gplayer.lookingDirection.x,
-        gplayer.lookingDirection.y,
-        gplayer.lookingDirection.z
-    ));
-    DebugTextDraw(TextFormat("rope length %.2f", gplayer.ropeLength));
+    // DebugTextDraw(
+    //     TextFormat("FPS: %i (press F1 to change)",
+    //     fpsValues[gdata.currentFPSValueIndex])
+    // );
+    // DebugTextDraw("Toggle gizmos - F2");
+    // DebugTextDraw(TextFormat(
+    //     "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y,
+    //     gplayer.position.z
+    // ));
+    // DebugTextDraw(TextFormat(
+    //     "vel (%.2f) %.2f %.2f %.2f",
+    //     Vector3Length(gplayer.velocity),
+    //     gplayer.velocity.x,
+    //     gplayer.velocity.y,
+    //     gplayer.velocity.z
+    // ));
+    // DebugTextDraw(TextFormat(
+    //     "look %.2f %.2f %.2f",
+    //     gplayer.lookingDirection.x,
+    //     gplayer.lookingDirection.y,
+    //     gplayer.lookingDirection.z
+    // ));
+    // DebugTextDraw(TextFormat("rope length %.2f", gplayer.ropeLength));
+    // DebugTextDraw(TextFormat("fov %.2f", camera.fovy));
+
+    bool isAirborne
+        = gplayer.currentState == (gdata.states + (int)PlayerStates::AIRBORNE);
+
+    ButtonTextDraw("SPACE - Jump", &gplayer.buttonJumpPressedTime, !isAirborne);
+    ButtonTextDraw("LMB - Grapple", &gplayer.buttonGrapplePressedTime, isAirborne);
+    ButtonTextDraw("RMB - Dash", &gplayer.buttonDashPressedTime, isAirborne);
+    // ButtonTextDraw("V - Apply Boost", &gplayer.buttonBoostPressedTime);
+    // ButtonTextDraw("F3 - Clear Gizmos", &gplayer.buttonClearPathsPressedTime);
 }
 
 // Gameplay Screen Unload logic.
@@ -699,6 +834,10 @@ void UnloadGameplayScreen() {
         }
     }
     UnloadSound(gdata.fxJump);
+    UnloadSound(gdata.fxDash);
+    UnloadSound(gdata.fxGrapple);
+    UnloadSound(gdata.fxGrappleBack);
+    UnloadSound(gdata.fxBoost);
 }
 
 // Gameplay Screen should finish?

@@ -293,6 +293,37 @@ def do_run_vs_ahk() -> None:
     run_command(r".nvim-personal\launch_vs.ahk")
 
 
+def do_generate():
+    with open(Path("src") / "assets" / "unnamed_mesh1.vox") as in_file:
+        data = json.loads(in_file.read())
+
+    def int_to_triple_int(value: int) -> tuple[int, int, int]:
+        return (
+            (value & 0xFF0000) // 0x10000,
+            (value & 0xFF00) // 0x100,
+            value & 0xFF,
+        )
+
+    colors = [int_to_triple_int(i) for i in data["palette"]]
+    voxels = []
+
+    for layer in data["layers"]:
+        voxels.extend(layer["voxels"])
+
+    with open(
+        Path("src") / "resources" / "screens" / "gameplay" / "level.txt", "w"
+    ) as out_file:
+        out_file.write(str(len(colors)))
+        out_file.write("\n")
+        for color in colors:
+            out_file.write("{} {} {}\n".format(color[0], color[1], color[2]))
+
+        out_file.write(str(len(voxels)))
+        out_file.write("\n")
+        for voxel in voxels:
+            out_file.write("{} {} {} {}\n".format(*voxel))
+
+
 # ========================================
 # CLI Commands
 # ========================================
@@ -317,12 +348,14 @@ def action_cmake_vs_files():
 @app.command("build_game")
 def action_build_game():
     do_cmake_vs_files()
+    do_generate()
     do_build_game()
 
 
 @app.command("run")
 def action_run():
     do_cmake_vs_files()
+    do_generate()
     do_build_game()
 
     do_run()
@@ -332,6 +365,7 @@ def action_run():
 def action_stoopid_windows_visual_studio_run():
     do_stop_vs_ahk()
 
+    do_generate()
     do_build_game()
 
     do_run_vs_ahk()
@@ -339,6 +373,7 @@ def action_stoopid_windows_visual_studio_run():
 
 @app.command("test")
 def action_test():
+    do_generate()
     do_build_tests()
     do_test()
 
@@ -355,6 +390,11 @@ def action_lint():
     do_cmake_ninja_files()
     do_compile_commands_json()
     do_lint()
+
+
+@app.command("generate")
+def action_generate():
+    do_generate()
 
 
 # ========================================

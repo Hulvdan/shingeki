@@ -79,6 +79,11 @@ vim.keymap.set("n", "<f5>", function()
     run_command(cli_command("stoopid_windows_visual_studio_run"))
 end, opts)
 
+-- Билд + переключение окна на VS с одновременным запуском проекта.
+vim.keymap.set("n", "<A-g>", function()
+    run_command(cli_command("generate"))
+end, opts)
+
 -- Тесты.
 vim.keymap.set("n", "<A-t>", function()
     run_command(cli_command("test"))

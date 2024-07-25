@@ -37,11 +37,25 @@ void DebugTextReset() {
     debugTextData.lastDebugTextY = 0;
 }
 
-void DebugTextDraw(const char* text) {
-    const auto padding = 4;
-    const auto height  = 20;
+void DebugTextDraw(const char* text, Color color = RED) {
+    const auto padding = 6;
+    const auto height  = 30;
 
-    DrawText(text, padding, debugTextData.lastDebugTextY + padding, 20, RED);
+    DrawText(text, padding, debugTextData.lastDebugTextY + padding, height, color);
 
     debugTextData.lastDebugTextY += height + padding;
+}
+
+void ButtonTextDraw(const char* text, double* pressedAt, bool enabled) {
+    const float activatedDuration = 0.2f;
+    const auto  t                 = GetTime();
+
+    Color color = WHITE;
+    if (*pressedAt + activatedDuration > t)
+        color = ORANGE;
+
+    if (!enabled)
+        color = GRAY;
+
+    DebugTextDraw(text, color);
 }

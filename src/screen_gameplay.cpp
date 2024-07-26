@@ -3,6 +3,10 @@ static constexpr int fpsValues[] = {60, 20, 40};
 
 struct PlayerState;
 
+float GetRandomFloat(float from, float to) {
+    return from + (to - from) * (float)GetRandomValue(0, INT_MAX) / INT_MAX;
+}
+
 struct Vector3Int {
     int x;
     int y;
@@ -37,6 +41,19 @@ globalVar struct {
 
     std::vector<Vector3> linesToDraw;
     std::vector<Color>   colorsOfLines;
+
+    // Particles.
+    // ref: https://github.com/arceryz/raylib-gpu-particles/blob/master/main.c
+    const int    particlesPerShaderInstance = 1024;
+    const int    numberOfInstances          = 100;
+    Shader       particleShader;
+    unsigned int particleComputeShader = 0;
+    int          ssbo0;
+    int          ssbo1;
+    int          ssbo2;
+    Vector4*     positions;
+    Vector4*     velocities;
+    int          particleVao;
 } gdata;
 
 globalVar struct {
@@ -81,7 +98,6 @@ globalVar struct {
     const float boostAmount = 3.3f;
     const float maxVelocity = 28.0f;
     const float dashImpulse = 200.0f;
-
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -564,6 +580,102 @@ void InitGameplayScreen(Arena& arena) {
     gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
     gdata.camera.fovy       = gplayer.defaultFov;
     gdata.camera.projection = CAMERA_PERSPECTIVE;
+
+    {  // Particles.
+        // Compute shader for updating particles.
+        if (gdata.particleComputeShader == 0) {
+            char* shaderCode
+                = LoadFileText("resources/screens/gameplay/particle_compute.glsl");
+            int shaderData              = rlCompileShader(shaderCode, RL_COMPUTE_SHADER);
+            gdata.particleComputeShader = rlLoadComputeShaderProgram(shaderData);
+            UnloadFileText(shaderCode);
+        }
+
+        // Shader for constructing triangles and drawing.
+        gdata.particleShader = LoadShader(
+            "resources/screens/gameplay/particle_vertex.glsl",
+            "resources/screens/gameplay/particle_fragment.glsl"
+        );
+
+        // Now we prepare the buffers that we connect to the shaders.
+        // For each variable we want to give our particles, we create one buffer
+        // called a Shader Storage Buffer Object containing a single variable type.
+        //
+        // We will use only Vector4 as particle variables, because data in buffers
+        // requires very strict alignment rules.
+        // You can send structs, but if not properly aligned will introduce many bugs.
+        // For information on the std430 buffer layout see:
+        // https://www.khronos.org/opengl/wiki/Interface_Block_(GLSL).
+        //
+        // Number of particles should be a multiple of 1024, our workgroup size
+        // (set in shader).
+        const auto numParticles
+            = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
+
+        gdata.positions  = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
+        gdata.velocities = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
+
+        {
+            // const int maxValue = 65535;
+            // int* randomNumbers = LoadRandomSequence(numParticles * 3, 0, maxValue);
+            // Assert(randomNumbers != nullptr);
+
+            FOR_RANGE (int, i, numParticles) {
+                // We only use the XYZ components of position and velocity.
+                // Use the remainder for extra effects if needed, or create more buffers.
+                // float f1 = randomNumbers[i * 3];
+                // float f2 = randomNumbers[i * 3 + 1];
+                // float f3 = randomNumbers[i * 3 + 2];
+
+                gdata.positions[i] = Vector4{
+                    // Lerp(-0.5, 0.5, f1 / maxValue),
+                    // Lerp(-0.5, 0.5, f2 / maxValue),
+                    // Lerp(-0.5, 0.5, f3 / maxValue),
+                    GetRandomFloat(-0.5, 0.5),
+                    GetRandomFloat(-0.5, 0.5),
+                    GetRandomFloat(-0.5, 0.5),
+                    0,
+                };
+                gdata.velocities[i] = Vector4{0, 0, 0, 0};
+            }
+
+            // UnloadRandomSequence(randomNumbers);
+        }
+
+        // Load three buffers: Position, Velocity and Starting Position.
+        // Read/Write=RL_DYNAMIC_COPY.
+        gdata.ssbo0 = rlLoadShaderBuffer(
+            numParticles * sizeof(Vector4), gdata.positions, RL_DYNAMIC_COPY
+        );
+        gdata.ssbo1 = rlLoadShaderBuffer(
+            numParticles * sizeof(Vector4), gdata.velocities, RL_DYNAMIC_COPY
+        );
+        gdata.ssbo2 = rlLoadShaderBuffer(
+            numParticles * sizeof(Vector4), gdata.positions, RL_DYNAMIC_COPY
+        );
+
+        // For instancing we need a Vertex Array Object.
+        // Raylib Mesh* is inefficient for millions of particles.
+        // For info see: https://www.khronos.org/opengl/wiki/Vertex_Specification
+        gdata.particleVao = rlLoadVertexArray();
+        rlEnableVertexArray(gdata.particleVao);
+        {
+            // Our base particle mesh is a triangle on the unit circle.
+            // We will rotate and stretch the triangle in the vertex shader.
+            Vector3 vertices[] = {
+                {-0.86f, -0.5f, 0.0f},
+                {0.86f, -0.5f, 0.0f},
+                {0.0f, 1.0f, 0.0f},
+            };
+
+            // Configure the vertex array with a single attribute of vec3.
+            // This is the input to the vertex shader.
+            rlEnableVertexAttribute(0);
+            rlLoadVertexBuffer(vertices, sizeof(vertices), false);  // dynamic=false
+            rlSetVertexAttribute(0, 3, RL_FLOAT, false, 0, 0);
+        }
+        rlDisableVertexArray();
+    }
     // ------------------------------------------------------------
 
     {  // Loading level.
@@ -609,7 +721,7 @@ void InitGameplayScreen(Arena& arena) {
 
 // Gameplay Screen Update logic.
 void UpdateGameplayScreen() {
-    auto dt = GetFrameTime();
+    const auto dt = GetFrameTime();
 
     // Press enter or tap to change to ENDING screen.
     // if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
@@ -682,17 +794,47 @@ void UpdateGameplayScreen() {
         else
             gplayer.collided = false;
     }
+
+    UpdateCamera(&gdata.camera, CAMERA_ORBITAL);
+
+    {  // Particles. Compute pass.
+        float time      = GetTime();
+        float timeScale = 0.2f;
+        float sigma     = 10;
+        float rho       = 28;
+        float beta      = 8.0f / 3.0f;
+        rlEnableShader(gdata.particleComputeShader);
+
+        // Set our parameters. The indices are set in the shader.
+        rlSetUniform(0, &time, SHADER_UNIFORM_FLOAT, 1);
+        rlSetUniform(1, &timeScale, SHADER_UNIFORM_FLOAT, 1);
+        rlSetUniform(2, &dt, SHADER_UNIFORM_FLOAT, 1);
+        rlSetUniform(3, &sigma, SHADER_UNIFORM_FLOAT, 1);
+        rlSetUniform(4, &rho, SHADER_UNIFORM_FLOAT, 1);
+        rlSetUniform(5, &beta, SHADER_UNIFORM_FLOAT, 1);
+
+        rlBindShaderBuffer(gdata.ssbo0, 0);
+        rlBindShaderBuffer(gdata.ssbo1, 1);
+        rlBindShaderBuffer(gdata.ssbo2, 2);
+
+        // We have numParticles/1024 workGroups. Each workgroup has size 1024.
+        rlComputeShaderDispatch(gdata.numberOfInstances, 1, 1);
+        rlDisableShader();
+    }
 }
 
 // Gameplay Screen Draw logic.
 void DrawGameplayScreen() {
     DebugTextReset();
 
+    const auto dt = GetFrameTime();
+
     const auto    screenWidth  = GetScreenWidth();
     const auto    screenHeight = GetScreenHeight();
     const Vector2 screenSize{(float)screenWidth, (float)screenHeight};
 
-    DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
+    // DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
+    DrawRectangle(0, 0, screenWidth, screenHeight, GRAY);
 
     auto& camera    = gdata.camera;
     camera.position = gplayer.position + Vector3Up * 2.0f;
@@ -713,7 +855,7 @@ void DrawGameplayScreen() {
                     Lerp(
                         gplayer.defaultFov,
                         gplayer.dashedFov,
-                        dashElapsed / gplayer.fromDefaultToDashFovDuration
+                        (float)(dashElapsed / gplayer.fromDefaultToDashFovDuration)
                     ),
                     Min(gplayer.defaultFov, gplayer.dashedFov),
                     Max(gplayer.defaultFov, gplayer.dashedFov)
@@ -724,8 +866,8 @@ void DrawGameplayScreen() {
                     Lerp(
                         gplayer.dashedFov,
                         gplayer.defaultFov,
-                        (dashElapsed - gplayer.fromDefaultToDashFovDuration)
-                            / gplayer.fromDashToDefaultFovDuration
+                        (float)((dashElapsed - gplayer.fromDefaultToDashFovDuration)
+                                / gplayer.fromDashToDefaultFovDuration)
                     ),
                     Min(gplayer.defaultFov, gplayer.dashedFov),
                     Max(gplayer.defaultFov, gplayer.dashedFov)
@@ -733,20 +875,21 @@ void DrawGameplayScreen() {
             }
         }
     }
+    UpdateCamera(&gdata.camera, CAMERA_ORBITAL);
 
     BeginMode3D(camera);
-    {  // Drawing world.
+    if (0) {  // Drawing world.
         FOR_RANGE (int, i, gdata.cubes.size()) {
             const auto& cube = gdata.cubes[i];
-            const auto& pos  = Vector3(cube.pos.x, cube.pos.y, cube.pos.z);
+            const auto& pos
+                = Vector3((float)cube.pos.x, (float)cube.pos.y, (float)cube.pos.z);
             DrawCubeV(
                 pos + Vector3One() / 2.0f, Vector3One(), gdata.colors[cube.colorIndex]
             );
             DrawCubeWiresV(pos + Vector3One() / 2.0f, Vector3One(), BLACK);
         }
-
-        DrawGrid(100, 1.0f);
     }
+    DrawGrid(100, 1.0f);
     {  // Drawing ropes.
         if (gplayer.ropeActivated) {
             Vector3 from = gplayer.position;
@@ -757,6 +900,30 @@ void DrawGameplayScreen() {
 
             DrawRope(from, gplayer.ropePos);
         }
+    }
+    {  // Particles. Drawing pass.
+        const float particleScale = 10.0;
+
+        rlEnableShader(gdata.particleShader.id);
+
+        // Because we use rlgl, we must take care of matrices ourselves.
+        // We need to only pass the projection and view matrix.
+        // These will be used to make the particle face the camera and such.
+        Matrix projection = rlGetMatrixProjection();
+        Matrix view       = GetCameraMatrix(camera);
+
+        SetShaderValueMatrix(gdata.particleShader, 0, projection);
+        SetShaderValueMatrix(gdata.particleShader, 1, view);
+        SetShaderValue(gdata.particleShader, 2, &particleScale, SHADER_UNIFORM_FLOAT);
+
+        rlBindShaderBuffer(gdata.ssbo0, 0);
+        rlBindShaderBuffer(gdata.ssbo1, 1);
+
+        // Draw the particles. Instancing will duplicate the vertices.
+        rlEnableVertexArray(gdata.particleVao);
+        rlDrawVertexArrayInstanced(0, 3, gdata.numberOfInstances);
+        rlDisableVertexArray();
+        rlDisableShader();
     }
     if (gdata.gizmosEnabled) {  // Drawing lines 3D.
         FOR_RANGE (int, i, gdata.linesToDraw.size() / 2) {
@@ -798,10 +965,9 @@ void DrawGameplayScreen() {
     //     fpsValues[gdata.currentFPSValueIndex])
     // );
     // DebugTextDraw("Toggle gizmos - F2");
-    // DebugTextDraw(TextFormat(
-    //     "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y,
-    //     gplayer.position.z
-    // ));
+    DebugTextDraw(TextFormat(
+        "pos %.2f %.2f %.2f", gplayer.position.x, gplayer.position.y, gplayer.position.z
+    ));
     // DebugTextDraw(TextFormat(
     //     "vel (%.2f) %.2f %.2f %.2f",
     //     Vector3Length(gplayer.velocity),
@@ -809,12 +975,12 @@ void DrawGameplayScreen() {
     //     gplayer.velocity.y,
     //     gplayer.velocity.z
     // ));
-    // DebugTextDraw(TextFormat(
-    //     "look %.2f %.2f %.2f",
-    //     gplayer.lookingDirection.x,
-    //     gplayer.lookingDirection.y,
-    //     gplayer.lookingDirection.z
-    // ));
+    DebugTextDraw(TextFormat(
+        "look %.2f %.2f %.2f",
+        gplayer.lookingDirection.x,
+        gplayer.lookingDirection.y,
+        gplayer.lookingDirection.z
+    ));
     // DebugTextDraw(TextFormat("rope length %.2f", gplayer.ropeLength));
     // DebugTextDraw(TextFormat("fov %.2f", camera.fovy));
 
@@ -842,6 +1008,10 @@ void UnloadGameplayScreen() {
     UnloadSound(gdata.fxGrapple);
     UnloadSound(gdata.fxGrappleBack);
     UnloadSound(gdata.fxBoost);
+
+    UnloadShader(gdata.particleShader);
+    rlUnloadShaderProgram(gdata.particleComputeShader);
+    gdata.particleComputeShader = 0;
 }
 
 // Gameplay Screen should finish?

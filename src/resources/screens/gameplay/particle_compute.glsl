@@ -41,25 +41,23 @@ void main()
     vec3 pos = positions[index].xyz;
 
     // We reset the position when time is exactly zero.
-    // if (time == 0) {
-    //     pos = startPositions[index].xyz;
-    // }
+    if (time == 0) {
+        pos = startPositions[index].xyz;
+    }
 
-    // // Since our particles are in the (-1, 1) space
-    // // we transform the position to be suitable for the Lorenz system.
-    // pos = 30 * pos + vec3(0, 0, 30);
-    //
-    // // This is the Lorenz system (See wikipedia). Velocity=dx/dt.
-    // vec3 vel = vec3(0.0);
-    // vel.x = sigma * (pos.y - pos.x);
-    // vel.y = pos.x * (rho - pos.z) - pos.y;
-    // vel.z = pos.x * pos.y - beta*pos.z;
-    //
-    // // Update and transform back to (-1, 1).
-    // pos += vel * deltaTime * timeScale;
-    // pos = (pos - vec3(0, 0, 30)) / 30;
+    // Since our particles are in the (-1, 1) space
+    // we transform the position to be suitable for the Lorenz system.
+    pos = 30 * pos + vec3(0, 0, 30);
 
-    pos.xyz = vec3(1, 1, 1);
+    // This is the Lorenz system (See wikipedia). Velocity=dx/dt.
+    vec3 vel = vec3(0.0);
+    vel.x = sigma * (pos.y - pos.x);
+    vel.y = pos.x * (rho - pos.z) - pos.y;
+    vel.z = pos.x * pos.y - beta*pos.z;
+
+    // Update and transform back to (-1, 1).
+    pos += vel * deltaTime * timeScale;
+    pos = (pos - vec3(0, 0, 30)) / 30;
 
     // Assign the new values to the buffers.
     positions[index].xyz = pos;

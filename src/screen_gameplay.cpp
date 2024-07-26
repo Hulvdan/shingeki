@@ -45,7 +45,7 @@ globalVar struct {
     // Particles.
     // ref: https://github.com/arceryz/raylib-gpu-particles/blob/master/main.c
     const int    particlesPerShaderInstance = 1024;
-    const int    numberOfInstances          = 100;
+    const int    numberOfInstances          = 1;
     Shader       particleShader;
     unsigned int particleComputeShader = 0;
     int          ssbo0;
@@ -654,6 +654,10 @@ void InitGameplayScreen(Arena& arena) {
             numParticles * sizeof(Vector4), gdata.positions, RL_DYNAMIC_COPY
         );
 
+        Assert(gdata.ssbo0 != 0);
+        Assert(gdata.ssbo1 != 0);
+        Assert(gdata.ssbo2 != 0);
+
         // For instancing we need a Vertex Array Object.
         // Raylib Mesh* is inefficient for millions of particles.
         // For info see: https://www.khronos.org/opengl/wiki/Vertex_Specification
@@ -803,6 +807,10 @@ void UpdateGameplayScreen() {
         float sigma     = 10;
         float rho       = 28;
         float beta      = 8.0f / 3.0f;
+
+        const auto numParticles
+            = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
+
         rlEnableShader(gdata.particleComputeShader);
 
         // Set our parameters. The indices are set in the shader.
@@ -903,6 +911,8 @@ void DrawGameplayScreen() {
     }
     {  // Particles. Drawing pass.
         const float particleScale = 10.0;
+        const auto  numParticles
+            = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
 
         rlEnableShader(gdata.particleShader.id);
 
@@ -921,7 +931,7 @@ void DrawGameplayScreen() {
 
         // Draw the particles. Instancing will duplicate the vertices.
         rlEnableVertexArray(gdata.particleVao);
-        rlDrawVertexArrayInstanced(0, 3, gdata.numberOfInstances);
+        rlDrawVertexArrayInstanced(0, 3, numParticles);
         rlDisableVertexArray();
         rlDisableShader();
     }

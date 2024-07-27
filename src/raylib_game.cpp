@@ -74,7 +74,7 @@ int main() {
     fxCoin = LoadSound("resources/coin.wav");
 
     SetMusicVolume(music, 1.0f);
-    PlayMusicStream(music);
+    // PlayMusicStream(music);
 
     Arena arena = {};
     arena.size  = 4096;

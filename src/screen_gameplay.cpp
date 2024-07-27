@@ -51,9 +51,12 @@ globalVar struct {
     int          ssbo0;
     int          ssbo1;
     int          ssbo2;
-    Vector4*     positions;
-    Vector4*     velocities;
-    int          particleVao;
+    Vector4*     positions                   = nullptr;
+    Vector4*     velocities                  = nullptr;
+    float*       timesOfCreation             = nullptr;
+    int          nextToGenerateParticleIndex = 0;
+
+    int particleVao;
 } gdata;
 
 globalVar struct {
@@ -98,6 +101,8 @@ globalVar struct {
     const float boostAmount = 3.3f;
     const float maxVelocity = 28.0f;
     const float dashImpulse = 200.0f;
+
+    const float particlesAmountPerSecond = 3000.0f;
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -517,6 +522,42 @@ PlayerState_Update_Function(Airborne_Update) {
                 );
             }
         }
+
+        // Particles generation.
+        // if (IsKeyDown(KEY_V)) {
+        {
+            const auto numParticles
+                = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
+
+            float k = Vector3Length(gplayer.velocity) / gplayer.maxVelocity;
+
+            int amountToGenerate = int(k * dt * gplayer.particlesAmountPerSecond) + 1;
+
+            auto t = GetTime();
+
+            FOR_RANGE (int, i, amountToGenerate) {
+                int ii = gdata.nextToGenerateParticleIndex % numParticles;
+
+                auto p
+                    = Vector3Lerp(oldPos, position, float(i) / float(amountToGenerate));
+
+                gdata.positions[ii]  = Vector4(p.x, p.y, p.z, 0);
+                gdata.velocities[ii] = Vector4(
+                    0,
+                    0,
+                    0,
+                    // GetRandomFloat(-0.5f, 0.5f),
+                    // GetRandomFloat(-0.5f, 0.5f),
+                    // GetRandomFloat(-0.5f, 0.5f),
+                    0
+                );
+                gdata.timesOfCreation[ii] = (float)t;
+
+                gdata.nextToGenerateParticleIndex++;
+                if (gdata.nextToGenerateParticleIndex >= numParticles)
+                    gdata.nextToGenerateParticleIndex -= numParticles;
+            }
+        }
     }
 
     {
@@ -612,35 +653,9 @@ void InitGameplayScreen(Arena& arena) {
         const auto numParticles
             = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
 
-        gdata.positions  = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
-        gdata.velocities = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
-
-        {
-            // const int maxValue = 65535;
-            // int* randomNumbers = LoadRandomSequence(numParticles * 3, 0, maxValue);
-            // Assert(randomNumbers != nullptr);
-
-            FOR_RANGE (int, i, numParticles) {
-                // We only use the XYZ components of position and velocity.
-                // Use the remainder for extra effects if needed, or create more buffers.
-                // float f1 = randomNumbers[i * 3];
-                // float f2 = randomNumbers[i * 3 + 1];
-                // float f3 = randomNumbers[i * 3 + 2];
-
-                gdata.positions[i] = Vector4{
-                    // Lerp(-0.5, 0.5, f1 / maxValue),
-                    // Lerp(-0.5, 0.5, f2 / maxValue),
-                    // Lerp(-0.5, 0.5, f3 / maxValue),
-                    GetRandomFloat(-0.5, 0.5),
-                    GetRandomFloat(-0.5, 0.5),
-                    GetRandomFloat(-0.5, 0.5),
-                    0,
-                };
-                gdata.velocities[i] = Vector4{0, 0, 0, 0};
-            }
-
-            // UnloadRandomSequence(randomNumbers);
-        }
+        gdata.positions       = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
+        gdata.velocities      = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
+        gdata.timesOfCreation = (float*)RL_MALLOC(sizeof(float) * numParticles);
 
         // Load three buffers: Position, Velocity and Starting Position.
         // Read/Write=RL_DYNAMIC_COPY.
@@ -651,7 +666,7 @@ void InitGameplayScreen(Arena& arena) {
             numParticles * sizeof(Vector4), gdata.velocities, RL_DYNAMIC_COPY
         );
         gdata.ssbo2 = rlLoadShaderBuffer(
-            numParticles * sizeof(Vector4), gdata.positions, RL_DYNAMIC_COPY
+            numParticles * sizeof(float), gdata.timesOfCreation, RL_DYNAMIC_COPY
         );
 
         Assert(gdata.ssbo0 != 0);
@@ -802,7 +817,7 @@ void UpdateGameplayScreen() {
     UpdateCamera(&gdata.camera, CAMERA_ORBITAL);
 
     {  // Particles. Compute pass.
-        float time      = GetTime();
+        float time      = (float)GetTime();
         float timeScale = 0.2f;
         float sigma     = 10;
         float rho       = 28;
@@ -817,13 +832,13 @@ void UpdateGameplayScreen() {
         rlSetUniform(0, &time, SHADER_UNIFORM_FLOAT, 1);
         rlSetUniform(1, &timeScale, SHADER_UNIFORM_FLOAT, 1);
         rlSetUniform(2, &dt, SHADER_UNIFORM_FLOAT, 1);
-        rlSetUniform(3, &sigma, SHADER_UNIFORM_FLOAT, 1);
-        rlSetUniform(4, &rho, SHADER_UNIFORM_FLOAT, 1);
-        rlSetUniform(5, &beta, SHADER_UNIFORM_FLOAT, 1);
+        // rlSetUniform(3, &sigma, SHADER_UNIFORM_FLOAT, 1);
+        // rlSetUniform(4, &rho, SHADER_UNIFORM_FLOAT, 1);
+        // rlSetUniform(5, &beta, SHADER_UNIFORM_FLOAT, 1);
 
         rlBindShaderBuffer(gdata.ssbo0, 0);
         rlBindShaderBuffer(gdata.ssbo1, 1);
-        rlBindShaderBuffer(gdata.ssbo2, 2);
+        // rlBindShaderBuffer(gdata.ssbo2, 2);
 
         // We have numParticles/1024 workGroups. Each workgroup has size 1024.
         rlComputeShaderDispatch(gdata.numberOfInstances, 1, 1);
@@ -925,9 +940,11 @@ void DrawGameplayScreen() {
         SetShaderValueMatrix(gdata.particleShader, 0, projection);
         SetShaderValueMatrix(gdata.particleShader, 1, view);
         SetShaderValue(gdata.particleShader, 2, &particleScale, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(gdata.particleShader, 3, &time, SHADER_UNIFORM_FLOAT);
 
         rlBindShaderBuffer(gdata.ssbo0, 0);
         rlBindShaderBuffer(gdata.ssbo1, 1);
+        rlBindShaderBuffer(gdata.ssbo2, 2);
 
         // Draw the particles. Instancing will duplicate the vertices.
         rlEnableVertexArray(gdata.particleVao);

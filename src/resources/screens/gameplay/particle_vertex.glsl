@@ -13,9 +13,11 @@ layout (location=2) uniform float particleScale;
 // We can write to them here but should not.
 layout(std430, binding=0) buffer ssbo0 { vec4 positions[]; };
 layout(std430, binding=1) buffer ssbo1 { vec4 velocities[]; };
+layout(std430, binding=2) buffer ssbo2 { float timesOfCreation[]; };
 
 // We will only output color.
 out vec4 fragColor;
+out float timeOfCreation;
 
 void main()
 {
@@ -25,6 +27,7 @@ void main()
     // Set color to a nice gradient depending on direction.
     fragColor.rgb = abs(normalize(velocity)) + 0.2;
     fragColor.a = 1.0;
+    timeOfCreation = timesOfCreation[gl_InstanceID];
 
     // We want to do two things:
     // 1. Make the particle face the camera.
@@ -33,8 +36,8 @@ void main()
     // Point (1) we will achieve here by not multiplying by the view matrix,
     // since the view matrix will rotate the vertex. We only need the translation from it.
     // Therefore will add view-space world position at the end.
-    float scale = 0.005*particleScale;
-    vec3 vertexView = vertexPosition*scale;
+    float scale = 0.005 * particleScale;
+    vec3 vertexView = vertexPosition * scale;
 
     // With the triangle facing the camera, we want it to now point in the
     // direction of its movement (in view space).
@@ -51,16 +54,17 @@ void main()
     // We perform essentially 2x2 matrix multiplication.
     vec2 xvec = vec2(cos(rot), sin(rot));
     vec2 yvec = vec2(-sin(rot), cos(rot));
-    vertexView.xy = vertexView.x*xvec + vertexView.y*yvec;
+    vertexView.xy = vertexView.x * xvec + vertexView.y * yvec;
 
     // We scale the tip of the vertex by checking if gl_VertexID==2.
     // We avoid if* statements.
     float isTip = float(gl_VertexID == 2);
-    float arrowLength = speed*0.05;
-    vertexView.xy = vertexView.xy*(1-isTip) + isTip*vertexView.xy * (arrowLength+1);
+    float arrowLength = speed * 0.05;
+    vertexView.xy = vertexView.xy * (1 - isTip) + isTip * vertexView.xy * (arrowLength + 1);
 
     // Add the particle position to the vertex (in view space).
-    vertexView += (viewMatrix * vec4(position, 1)).xyz;
+    // vertexView += (viewMatrix * vec4(position, 1)).xyz;
+    vertexView += vec4(position, 1).xyz;
 
     // Calculate final vertex position.
     gl_Position = projectionMatrix * vec4(vertexView, 1);

@@ -82,12 +82,12 @@ globalVar struct {
     double buttonDashPressedTime       = -floatInf;
     double buttonClearPathsPressedTime = -floatInf;
 
-    double       lastBoostTime                = -floatInf;
-    double       lastDashTime                 = -floatInf;
-    const double fromDefaultToDashFovDuration = 0.1;
-    const double fromDashToDefaultFovDuration = 1.0;
-    const float  defaultFov                   = 55.0f;
-    const float  dashedFov                    = 75.0f;
+    double      lastBoostTime                = -floatInf;
+    double      lastDashTime                 = -floatInf;
+    const float fromDefaultToDashFovDuration = 0.1f;
+    const float fromDashToDefaultFovDuration = 1.0f;
+    const float defaultFov                   = 55.0f;
+    const float dashedFov                    = 75.0f;
 
     const float boostSoundInterval = 0.13f;
 
@@ -864,12 +864,12 @@ void DrawGameplayScreen() {
     camera.target   = camera.position + gplayer.lookingDirection * 100.0f;
 
     {  // FOV.
-        const double dashElapsed = GetTime() - gplayer.lastDashTime;
-        const bool   isDefault   = dashElapsed
-                               > (gplayer.fromDefaultToDashFovDuration
-                                  + gplayer.fromDashToDefaultFovDuration);
+        const float dashElapsed          = (float)(GetTime() - gplayer.lastDashTime);
+        const bool  dashAnimationExpired = dashElapsed
+                                          > (gplayer.fromDefaultToDashFovDuration
+                                             + gplayer.fromDashToDefaultFovDuration);
 
-        if (isDefault) {
+        if (dashAnimationExpired) {
             camera.fovy = gplayer.defaultFov;
         }
         else {
@@ -878,7 +878,7 @@ void DrawGameplayScreen() {
                     Lerp(
                         gplayer.defaultFov,
                         gplayer.dashedFov,
-                        (float)(dashElapsed / gplayer.fromDefaultToDashFovDuration)
+                        dashElapsed / gplayer.fromDefaultToDashFovDuration
                     ),
                     Min(gplayer.defaultFov, gplayer.dashedFov),
                     Max(gplayer.defaultFov, gplayer.dashedFov)
@@ -889,8 +889,8 @@ void DrawGameplayScreen() {
                     Lerp(
                         gplayer.dashedFov,
                         gplayer.defaultFov,
-                        (float)((dashElapsed - gplayer.fromDefaultToDashFovDuration)
-                                / gplayer.fromDashToDefaultFovDuration)
+                        (dashElapsed - gplayer.fromDefaultToDashFovDuration)
+                            / gplayer.fromDashToDefaultFovDuration
                     ),
                     Min(gplayer.defaultFov, gplayer.dashedFov),
                     Max(gplayer.defaultFov, gplayer.dashedFov)

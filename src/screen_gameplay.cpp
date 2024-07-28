@@ -55,8 +55,7 @@ globalVar struct {
     Vector4*     velocities                  = nullptr;
     float*       timesOfCreation             = nullptr;
     int          nextToGenerateParticleIndex = 0;
-
-    int particleVao;
+    int          particleVao;
 } gdata;
 
 globalVar struct {
@@ -64,7 +63,7 @@ globalVar struct {
     float   rotationHorizontal = 0;
     Vector3 lookingDirection   = {};
 
-    Vector3 position = {0.0f, 0.0f, 10.0f};
+    Vector3 position = {0.0f, 0.0f, 1.0f};
     Vector3 velocity = {};
 
     PlayerState* currentState = nullptr;
@@ -533,32 +532,52 @@ PlayerState_Update_Function(Airborne_Update) {
             float k = Vector3Length(gplayer.velocity) / gplayer.maxVelocity;
 
             int amountToGenerate = int(k * dt * gplayer.particlesAmountPerSecond) + 1;
-            amountToGenerate     = 1;
+            amountToGenerate     = Min(amountToGenerate, numParticles);
 
             auto t = GetTime();
 
+            int startedAt = gdata.nextToGenerateParticleIndex;
             FOR_RANGE (int, i, amountToGenerate) {
                 int ii = gdata.nextToGenerateParticleIndex % numParticles;
 
                 auto p
                     = Vector3Lerp(oldPos, position, float(i) / float(amountToGenerate));
 
-                gdata.positions[ii] = Vector4(0, 0, 0, 0);
-                // gdata.positions[ii]  = Vector4(p.x, p.y, p.z, 0);
-                gdata.velocities[ii] = Vector4(
-                    // 0,
-                    // 0,
-                    // 0,
-                    GetRandomFloat(-0.5f, 0.5f),
-                    GetRandomFloat(-0.5f, 0.5f),
-                    GetRandomFloat(-0.5f, 0.5f),
-                    0
-                );
+                // gdata.positions[ii] = Vector4(0, 0, 0, 0);
+                gdata.positions[ii] = Vector4(p.x, p.y, p.z, 0);
+                // gdata.positions[ii] = Vector4(
+                // GetRandomFloat(-0.5, 0.5),
+                // GetRandomFloat(-0.5, 0.5),
+                // GetRandomFloat(-0.5, 0.5),
+                // 0
+                // );
+                gdata.velocities[ii]      = Vector4{0, 0, 0, 0};
                 gdata.timesOfCreation[ii] = (float)t;
 
                 gdata.nextToGenerateParticleIndex++;
                 if (gdata.nextToGenerateParticleIndex >= numParticles)
                     gdata.nextToGenerateParticleIndex -= numParticles;
+            }
+
+            int finishedAt = gdata.nextToGenerateParticleIndex;
+
+            if (startedAt < finishedAt) {
+                rlUpdateShaderBuffer(
+                    gdata.ssbo0,
+                    gdata.positions,
+                    sizeof(Vector4) * amountToGenerate,
+                    startedAt
+                );
+            }
+            else {
+                int firstUpdate  = numParticles - startedAt;
+                int secondUpdate = amountToGenerate - firstUpdate;
+                rlUpdateShaderBuffer(
+                    gdata.ssbo0, gdata.positions, sizeof(Vector4) * firstUpdate, startedAt
+                );
+                rlUpdateShaderBuffer(
+                    gdata.ssbo0, gdata.positions, sizeof(Vector4) * secondUpdate, 0
+                );
             }
         }
     }
@@ -659,6 +678,33 @@ void InitGameplayScreen(Arena& arena) {
         gdata.positions       = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
         gdata.velocities      = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
         gdata.timesOfCreation = (float*)RL_MALLOC(sizeof(float) * numParticles);
+
+        {
+            // const int maxValue = 65535;
+            // int* randomNumbers = LoadRandomSequence(numParticles * 3, 0, maxValue);
+            // Assert(randomNumbers != nullptr);
+
+            FOR_RANGE (int, i, numParticles) {
+                // We only use the XYZ components of position and velocity.
+                // Use the remainder for extra effects if needed, or create more buffers.
+                // float f1 = randomNumbers[i * 3];
+                // float f2 = randomNumbers[i * 3 + 1];
+                // float f3 = randomNumbers[i * 3 + 2];
+
+                // gdata.positions[i] = Vector4{
+                //     // Lerp(-0.5, 0.5, f1 / maxValue),
+                //     // Lerp(-0.5, 0.5, f2 / maxValue),
+                //     // Lerp(-0.5, 0.5, f3 / maxValue),
+                //     GetRandomFloat(-0.5, 0.5),
+                //     GetRandomFloat(-0.5, 0.5),
+                //     GetRandomFloat(-0.5, 0.5),
+                //     0,
+                // };
+                gdata.velocities[i] = Vector4{0, 0, 0, 0};
+            }
+
+            // UnloadRandomSequence(randomNumbers);
+        }
 
         // Load three buffers: Position, Velocity and Starting Position.
         // Read/Write=RL_DYNAMIC_COPY.

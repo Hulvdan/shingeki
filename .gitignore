@@ -83,3 +83,5 @@ cython_debug/
 
 # My stuff
 /.cmake/
+/cmake-build-debug/
+/.idea/

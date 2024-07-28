@@ -1,7 +1,7 @@
 #version 430
 
-in vec4 fragColor;
-in vec4 dur;
+in vec4  fragColor;
+in float particleLivingDuration;
 
 out vec4 finalColor;
 
@@ -11,10 +11,12 @@ void main()
     const float fadeDuration = 4;
     finalColor = fragColor;
 
-    if (dur.x > (opaqueDuration + fadeDuration))
+    const float dur = particleLivingDuration;
+
+    if (dur > (opaqueDuration + fadeDuration))
         discard;
-    else if (dur.x > opaqueDuration)
-        finalColor.a = 1 - (dur.x - opaqueDuration) / fadeDuration;
+    else if (dur > opaqueDuration)
+        finalColor.a = 1 - (dur - opaqueDuration) / fadeDuration;
     else
         finalColor.a = 1;
 }

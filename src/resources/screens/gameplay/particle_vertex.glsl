@@ -1,3 +1,8 @@
+//
+// NOTE: Оставил комменты из примера.
+// ref: https://github.com/arceryz/raylib-gpu-particles/blob/master/Shaders/particle_vertex.glsl
+//
+
 #version 430
 
 // This is the vertex position of the base particle!
@@ -14,13 +19,11 @@ layout (location=3) uniform float currentTime;
 // We can write to them here but should not.
 layout(std430, binding=0) buffer ssbo0 { vec4 positions[]; };
 layout(std430, binding=1) buffer ssbo1 { vec4 velocities[]; };
-layout(std430, binding=2) buffer ssbo2 { vec4 timesOfCreation[]; };
+layout(std430, binding=2) buffer ssbo2 { float timesOfCreation[]; };
 
 // We will only output color.
-out vec4 fragColor;
-out vec4 dur;
-// out float timeOfCreation;
-// out float currentTimeOut;
+out vec4  fragColor;
+out float particleLivingDuration;
 
 void main()
 {
@@ -31,7 +34,7 @@ void main()
     // fragColor.rgb = abs(normalize(velocity)) + 0.2;
     fragColor.rgb = vec3(1, 0, 0);
     fragColor.a = 1.0;
-    dur = vec4(currentTime - timesOfCreation[gl_InstanceID].x, 0, 0, 0);
+    particleLivingDuration = currentTime - timesOfCreation[gl_InstanceID];
     // timeOfCreation = timesOfCreation[gl_InstanceID];
     // currentTimeOut = currentTime;
 

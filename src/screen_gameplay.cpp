@@ -53,7 +53,7 @@ globalVar struct {
     int          ssbo2;
     Vector4*     positions                   = nullptr;
     Vector4*     velocities                  = nullptr;
-    Vector4*     timesOfCreation             = nullptr;
+    float*       timesOfCreation             = nullptr;
     int          nextToGenerateParticleIndex = 0;
     int          particleVao;
 } gdata;
@@ -574,7 +574,7 @@ PlayerState_Update_Function(Airborne_Update) {
                     GetRandomFloat(-0.5, 0.5),
                     0
                 );
-                gdata.timesOfCreation[ii] = Vector4((float)t, 0, 0, 0);
+                gdata.timesOfCreation[ii] = (float)t;
 
                 gdata.nextToGenerateParticleIndex++;
                 if (gdata.nextToGenerateParticleIndex >= numParticles)
@@ -600,7 +600,7 @@ PlayerState_Update_Function(Airborne_Update) {
             UpdateSSBOAsRingBuffer(
                 gdata.ssbo2,
                 (void*)gdata.timesOfCreation,
-                sizeof(Vector4),
+                sizeof(float),
                 startedAt,
                 amountToGenerate,
                 numParticles
@@ -702,12 +702,12 @@ void InitGameplayScreen(Arena& arena) {
 
         gdata.positions       = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
         gdata.velocities      = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
-        gdata.timesOfCreation = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
+        gdata.timesOfCreation = (float*)RL_MALLOC(sizeof(float) * numParticles);
 
         FOR_RANGE (int, i, numParticles) {
             gdata.positions[i]       = Vector4(0, 0, 0, 0);
             gdata.velocities[i]      = Vector4(0, 0, 0, 0);
-            gdata.timesOfCreation[i] = Vector4(-100, 0, 0, 0);
+            gdata.timesOfCreation[i] = -100.0f;
         }
 
         // Load three buffers: Position, Velocity and Starting Position.
@@ -719,7 +719,7 @@ void InitGameplayScreen(Arena& arena) {
             numParticles * sizeof(Vector4), gdata.velocities, RL_DYNAMIC_COPY
         );
         gdata.ssbo2 = rlLoadShaderBuffer(
-            numParticles * sizeof(Vector4), gdata.timesOfCreation, RL_DYNAMIC_COPY
+            numParticles * sizeof(float), gdata.timesOfCreation, RL_DYNAMIC_COPY
         );
 
         Assert(gdata.ssbo0 != 0);

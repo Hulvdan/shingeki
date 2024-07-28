@@ -53,7 +53,7 @@ globalVar struct {
     int          ssbo2;
     Vector4*     positions                   = nullptr;
     Vector4*     velocities                  = nullptr;
-    float*       timesOfCreation             = nullptr;
+    Vector4*     timesOfCreation             = nullptr;
     int          nextToGenerateParticleIndex = 0;
     int          particleVao;
 } gdata;
@@ -408,7 +408,7 @@ void UpdateSSBOAsRingBuffer(
 
     if (startedIndex < finishedIndex) {
         rlUpdateShaderBuffer(
-            ssboID, data, sizeof(Vector4) * updatedElementsCount, startedIndex
+            ssboID, data, dataElementSize * updatedElementsCount, startedIndex
         );
     }
     else {
@@ -574,7 +574,7 @@ PlayerState_Update_Function(Airborne_Update) {
                     GetRandomFloat(-0.5, 0.5),
                     0
                 );
-                gdata.timesOfCreation[ii] = (float)t;
+                gdata.timesOfCreation[ii] = Vector4((float)t, 0, 0, 0);
 
                 gdata.nextToGenerateParticleIndex++;
                 if (gdata.nextToGenerateParticleIndex >= numParticles)
@@ -592,6 +592,14 @@ PlayerState_Update_Function(Airborne_Update) {
             UpdateSSBOAsRingBuffer(
                 gdata.ssbo1,
                 (void*)gdata.velocities,
+                sizeof(Vector4),
+                startedAt,
+                amountToGenerate,
+                numParticles
+            );
+            UpdateSSBOAsRingBuffer(
+                gdata.ssbo2,
+                (void*)gdata.timesOfCreation,
                 sizeof(Vector4),
                 startedAt,
                 amountToGenerate,
@@ -641,9 +649,8 @@ void InitGameplayScreen(Arena& arena) {
         gdata.fxFootsteps = AllocateArray(arena, Sound, 5);
 
         FOR_RANGE (int, i, 5) {
-            gdata.fxFootsteps[i] = LoadSound(
-                TextFormat("resources/screens/gameplay/footstep_%i.wav.wav", i)
-            );
+            gdata.fxFootsteps[i]
+                = LoadSound(TextFormat("resources/screens/gameplay/footstep_%i.wav", i));
         }
     }
     gdata.fxBoost       = LoadSound("resources/screens/gameplay/boost.wav");
@@ -695,32 +702,12 @@ void InitGameplayScreen(Arena& arena) {
 
         gdata.positions       = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
         gdata.velocities      = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
-        gdata.timesOfCreation = (float*)RL_MALLOC(sizeof(float) * numParticles);
+        gdata.timesOfCreation = (Vector4*)RL_MALLOC(sizeof(Vector4) * numParticles);
 
-        {
-            // const int maxValue = 65535;
-            // int* randomNumbers = LoadRandomSequence(numParticles * 3, 0, maxValue);
-            // Assert(randomNumbers != nullptr);
-
-            FOR_RANGE (int, i, numParticles) {
-                // We only use the XYZ components of position and velocity.
-                // Use the remainder for extra effects if needed, or create more
-                // buffers. float f1 = randomNumbers[i * 3]; float f2 =
-                // randomNumbers[i * 3 + 1]; float f3 = randomNumbers[i * 3 + 2];
-
-                // gdata.positions[i] = Vector4{
-                //     // Lerp(-0.5, 0.5, f1 / maxValue),
-                //     // Lerp(-0.5, 0.5, f2 / maxValue),
-                //     // Lerp(-0.5, 0.5, f3 / maxValue),
-                //     GetRandomFloat(-0.5, 0.5),
-                //     GetRandomFloat(-0.5, 0.5),
-                //     GetRandomFloat(-0.5, 0.5),
-                //     0,
-                // };
-                gdata.velocities[i] = Vector4{0, 0, 0, 0};
-            }
-
-            // UnloadRandomSequence(randomNumbers);
+        FOR_RANGE (int, i, numParticles) {
+            gdata.positions[i]       = Vector4(0, 0, 0, 0);
+            gdata.velocities[i]      = Vector4(0, 0, 0, 0);
+            gdata.timesOfCreation[i] = Vector4(-100, 0, 0, 0);
         }
 
         // Load three buffers: Position, Velocity and Starting Position.
@@ -732,7 +719,7 @@ void InitGameplayScreen(Arena& arena) {
             numParticles * sizeof(Vector4), gdata.velocities, RL_DYNAMIC_COPY
         );
         gdata.ssbo2 = rlLoadShaderBuffer(
-            numParticles * sizeof(float), gdata.timesOfCreation, RL_DYNAMIC_COPY
+            numParticles * sizeof(Vector4), gdata.timesOfCreation, RL_DYNAMIC_COPY
         );
 
         Assert(gdata.ssbo0 != 0);
@@ -996,6 +983,7 @@ void DrawGameplayScreen() {
         // These will be used to make the particle face the camera and such.
         Matrix projection = rlGetMatrixProjection();
         Matrix view       = GetCameraMatrix(camera);
+        float  time       = GetTime();
 
         SetShaderValueMatrix(gdata.particleShader, 0, projection);
         SetShaderValueMatrix(gdata.particleShader, 1, view);
@@ -1099,6 +1087,13 @@ void UnloadGameplayScreen() {
     UnloadShader(gdata.particleShader);
     rlUnloadShaderProgram(gdata.particleComputeShader);
     gdata.particleComputeShader = 0;
+
+    RL_FREE(gdata.positions);
+    RL_FREE(gdata.velocities);
+    RL_FREE(gdata.timesOfCreation);
+    gdata.positions       = nullptr;
+    gdata.velocities      = nullptr;
+    gdata.timesOfCreation = nullptr;
 }
 
 // Gameplay Screen should finish?

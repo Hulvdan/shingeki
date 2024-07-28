@@ -396,6 +396,29 @@ TEST_CASE ("TransformVelocityBasedOnRopeDirection") {
     }
 }
 
+void UpdateSSBOAsRingBuffer(
+    int   ssboID,
+    void* data,
+    int   dataElementSize,
+    int   startedIndex,
+    int   updatedElementsCount,
+    int   ssboElementsCount
+) {
+    int finishedIndex = (startedIndex + updatedElementsCount) % ssboElementsCount;
+
+    if (startedIndex < finishedIndex) {
+        rlUpdateShaderBuffer(
+            ssboID, data, sizeof(Vector4) * updatedElementsCount, startedIndex
+        );
+    }
+    else {
+        int firstUpdate  = ssboElementsCount - startedIndex;
+        int secondUpdate = updatedElementsCount - firstUpdate;
+        rlUpdateShaderBuffer(ssboID, data, dataElementSize * firstUpdate, startedIndex);
+        rlUpdateShaderBuffer(ssboID, data, dataElementSize * secondUpdate, 0);
+    }
+}
+
 PlayerState_Update_Function(Airborne_Update) {
     {  // Player camera rotation.
         const float sensitivity = 1.0f / 300.0f;
@@ -544,14 +567,13 @@ PlayerState_Update_Function(Airborne_Update) {
                     = Vector3Lerp(oldPos, position, float(i) / float(amountToGenerate));
 
                 // gdata.positions[ii] = Vector4(0, 0, 0, 0);
-                gdata.positions[ii] = Vector4(p.x, p.y, p.z, 0);
-                // gdata.positions[ii] = Vector4(
-                // GetRandomFloat(-0.5, 0.5),
-                // GetRandomFloat(-0.5, 0.5),
-                // GetRandomFloat(-0.5, 0.5),
-                // 0
-                // );
-                gdata.velocities[ii]      = Vector4{0, 0, 0, 0};
+                gdata.positions[ii]  = Vector4(p.x, p.y, p.z, 0);
+                gdata.velocities[ii] = Vector4(
+                    GetRandomFloat(-0.5, 0.5),
+                    GetRandomFloat(-0.5, 0.5),
+                    GetRandomFloat(-0.5, 0.5),
+                    0
+                );
                 gdata.timesOfCreation[ii] = (float)t;
 
                 gdata.nextToGenerateParticleIndex++;
@@ -559,26 +581,22 @@ PlayerState_Update_Function(Airborne_Update) {
                     gdata.nextToGenerateParticleIndex -= numParticles;
             }
 
-            int finishedAt = gdata.nextToGenerateParticleIndex;
-
-            if (startedAt < finishedAt) {
-                rlUpdateShaderBuffer(
-                    gdata.ssbo0,
-                    gdata.positions,
-                    sizeof(Vector4) * amountToGenerate,
-                    startedAt
-                );
-            }
-            else {
-                int firstUpdate  = numParticles - startedAt;
-                int secondUpdate = amountToGenerate - firstUpdate;
-                rlUpdateShaderBuffer(
-                    gdata.ssbo0, gdata.positions, sizeof(Vector4) * firstUpdate, startedAt
-                );
-                rlUpdateShaderBuffer(
-                    gdata.ssbo0, gdata.positions, sizeof(Vector4) * secondUpdate, 0
-                );
-            }
+            UpdateSSBOAsRingBuffer(
+                gdata.ssbo0,
+                (void*)gdata.positions,
+                sizeof(Vector4),
+                startedAt,
+                amountToGenerate,
+                numParticles
+            );
+            UpdateSSBOAsRingBuffer(
+                gdata.ssbo1,
+                (void*)gdata.velocities,
+                sizeof(Vector4),
+                startedAt,
+                amountToGenerate,
+                numParticles
+            );
         }
     }
 
@@ -686,10 +704,9 @@ void InitGameplayScreen(Arena& arena) {
 
             FOR_RANGE (int, i, numParticles) {
                 // We only use the XYZ components of position and velocity.
-                // Use the remainder for extra effects if needed, or create more buffers.
-                // float f1 = randomNumbers[i * 3];
-                // float f2 = randomNumbers[i * 3 + 1];
-                // float f3 = randomNumbers[i * 3 + 2];
+                // Use the remainder for extra effects if needed, or create more
+                // buffers. float f1 = randomNumbers[i * 3]; float f2 =
+                // randomNumbers[i * 3 + 1]; float f3 = randomNumbers[i * 3 + 2];
 
                 // gdata.positions[i] = Vector4{
                 //     // Lerp(-0.5, 0.5, f1 / maxValue),
@@ -867,10 +884,7 @@ void UpdateGameplayScreen() {
 
     {  // Particles. Compute pass.
         float time      = (float)GetTime();
-        float timeScale = 0.2f;
-        float sigma     = 10;
-        float rho       = 28;
-        float beta      = 8.0f / 3.0f;
+        float timeScale = 1.2f;
 
         const auto numParticles
             = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
@@ -881,9 +895,6 @@ void UpdateGameplayScreen() {
         rlSetUniform(0, &time, SHADER_UNIFORM_FLOAT, 1);
         rlSetUniform(1, &timeScale, SHADER_UNIFORM_FLOAT, 1);
         rlSetUniform(2, &dt, SHADER_UNIFORM_FLOAT, 1);
-        // rlSetUniform(3, &sigma, SHADER_UNIFORM_FLOAT, 1);
-        // rlSetUniform(4, &rho, SHADER_UNIFORM_FLOAT, 1);
-        // rlSetUniform(5, &beta, SHADER_UNIFORM_FLOAT, 1);
 
         rlBindShaderBuffer(gdata.ssbo0, 0);
         rlBindShaderBuffer(gdata.ssbo1, 1);

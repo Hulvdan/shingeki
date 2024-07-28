@@ -4,7 +4,7 @@
 // This is the workgroup size. The largest size that is guaranteed by OpenGL
 // to be available is 1024, beyond this is uncertain.
 // Might influence performance but only in advanced cases.
-layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 layout(std430, binding=0) buffer ssbo0 { vec4 positions[]; };
 layout(std430, binding=1) buffer ssbo1 { vec4 velocities[]; };

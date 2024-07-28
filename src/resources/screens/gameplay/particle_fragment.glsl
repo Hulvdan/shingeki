@@ -1,9 +1,8 @@
 #version 430
 
-layout (location=3) uniform float currentTime;
-
 in vec4 fragColor;
-in float timeOfCreation;
+// in float timeOfCreation;
+// in float currentTime;
 
 out vec4 finalColor;
 
@@ -13,6 +12,7 @@ void main()
     // if ((currentTime - timeOfCreation) > threshold)
     //     discard;
 
-    finalColor = fragColor;
+    finalColor = vec4(1,0,0,1);
+    // finalColor = fragColor;
     // finalColor.a = (currentTime - timeOfCreation) / threshold;
 }

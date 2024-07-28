@@ -477,6 +477,7 @@ PlayerState_Update_Function(Airborne_Update) {
 
     SetSoundVolume(gdata.fxBoost, Vector3Length(gplayer.velocity) / gplayer.maxVelocity);
 
+    // Выпускание / забирание троса.
     if (IsMouseButtonPressed(0)) {
         if (gplayer.ropeActivated) {
             gplayer.ropeActivated = false;
@@ -532,6 +533,7 @@ PlayerState_Update_Function(Airborne_Update) {
             float k = Vector3Length(gplayer.velocity) / gplayer.maxVelocity;
 
             int amountToGenerate = int(k * dt * gplayer.particlesAmountPerSecond) + 1;
+            amountToGenerate     = 1;
 
             auto t = GetTime();
 
@@ -541,14 +543,15 @@ PlayerState_Update_Function(Airborne_Update) {
                 auto p
                     = Vector3Lerp(oldPos, position, float(i) / float(amountToGenerate));
 
-                gdata.positions[ii]  = Vector4(p.x, p.y, p.z, 0);
+                gdata.positions[ii] = Vector4(0, 0, 0, 0);
+                // gdata.positions[ii]  = Vector4(p.x, p.y, p.z, 0);
                 gdata.velocities[ii] = Vector4(
-                    0,
-                    0,
-                    0,
-                    // GetRandomFloat(-0.5f, 0.5f),
-                    // GetRandomFloat(-0.5f, 0.5f),
-                    // GetRandomFloat(-0.5f, 0.5f),
+                    // 0,
+                    // 0,
+                    // 0,
+                    GetRandomFloat(-0.5f, 0.5f),
+                    GetRandomFloat(-0.5f, 0.5f),
+                    GetRandomFloat(-0.5f, 0.5f),
                     0
                 );
                 gdata.timesOfCreation[ii] = (float)t;
@@ -560,7 +563,7 @@ PlayerState_Update_Function(Airborne_Update) {
         }
     }
 
-    {
+    {  // Переход в Grounded состояние.
         if (gplayer.position.y < 0) {
             gplayer.position.y = 0;
 

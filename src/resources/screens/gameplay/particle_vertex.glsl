@@ -2,12 +2,13 @@
 
 // This is the vertex position of the base particle!
 // This is the vertex attribute set in the code, index 0.
-layout (location=0) in vec3 vertexPosition;
+layout(location=0) in vec3 vertexPosition;
 
 // Input uniform values.
-layout (location=0) uniform mat4 projectionMatrix;
-layout (location=1) uniform mat4 viewMatrix;
-layout (location=2) uniform float particleScale;
+layout(location=0) uniform mat4 projectionMatrix;
+layout(location=1) uniform mat4 viewMatrix;
+layout(location=2) uniform float particleScale;
+layout(location=3) uniform float currentTime;
 
 // The two buffers we will be reading from.
 // We can write to them here but should not.
@@ -17,7 +18,8 @@ layout(std430, binding=2) buffer ssbo2 { float timesOfCreation[]; };
 
 // We will only output color.
 out vec4 fragColor;
-out float timeOfCreation;
+// out float timeOfCreation;
+// out float currentTimeOut;
 
 void main()
 {
@@ -25,9 +27,11 @@ void main()
     vec3 position = positions[gl_InstanceID].xyz;
 
     // Set color to a nice gradient depending on direction.
-    fragColor.rgb = abs(normalize(velocity)) + 0.2;
+    // fragColor.rgb = abs(normalize(velocity)) + 0.2;
+    fragColor.rgb = vec3(1, 0, 0);
     fragColor.a = 1.0;
-    timeOfCreation = timesOfCreation[gl_InstanceID];
+    // timeOfCreation = timesOfCreation[gl_InstanceID];
+    // currentTimeOut = currentTime;
 
     // We want to do two things:
     // 1. Make the particle face the camera.
@@ -36,7 +40,7 @@ void main()
     // Point (1) we will achieve here by not multiplying by the view matrix,
     // since the view matrix will rotate the vertex. We only need the translation from it.
     // Therefore will add view-space world position at the end.
-    float scale = 0.005 * particleScale;
+    float scale = 11.005 * particleScale;
     vec3 vertexView = vertexPosition * scale;
 
     // With the triangle facing the camera, we want it to now point in the
@@ -63,8 +67,7 @@ void main()
     vertexView.xy = vertexView.xy * (1 - isTip) + isTip * vertexView.xy * (arrowLength + 1);
 
     // Add the particle position to the vertex (in view space).
-    // vertexView += (viewMatrix * vec4(position, 1)).xyz;
-    vertexView += vec4(position, 1).xyz;
+    vertexView += (viewMatrix * vec4(position, 1)).xyz;
 
     // Calculate final vertex position.
     gl_Position = projectionMatrix * vec4(vertexView, 1);

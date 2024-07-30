@@ -33,5 +33,5 @@ layout(location=2) uniform float dt;
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
-    positions[index].xyz   += velocities[index].xyz * (dt * timeScale);
+    positions[index].xyz += velocities[index].xyz * (dt * timeScale);
 }

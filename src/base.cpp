@@ -26,3 +26,42 @@
 using u8 = char;
 
 constexpr float floatInf = std::numeric_limits<float>::infinity();
+
+//----------------------------------------------------------------------------------
+// Defer.
+//----------------------------------------------------------------------------------
+template <typename F>
+struct _Defer {
+    _Defer(F f)
+        : f(f) {}
+    ~_Defer() {
+        f();
+    }
+    F f;
+};
+
+template <typename F>
+_Defer<F> _makeDefer(F f) {
+    return _Defer<F>(f);
+};
+
+#define __defer(counter) defer_##counter
+#define _defer(counter) __defer(counter)
+
+struct _defer_dummy {};
+template <typename F>
+_Defer<F> operator+(_defer_dummy, F&& f) {
+    return _makeDefer<F>(std::forward<F>(f));
+}
+
+// Usage:
+//     {
+//         defer { printf("Deferred\n"); };
+//         printf("Normal\n");
+//     }
+//
+// Output:
+//     Normal
+//     Deferred
+//
+#define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()

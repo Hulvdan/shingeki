@@ -24,19 +24,25 @@ layout(std430, binding=2) buffer ssbo2 { float timesOfCreation[]; };
 // We will only output color.
 out vec4  fragColor;
 out float particleLivingDuration;
+out vec3  coord;
 
 void main()
 {
     vec3 velocity = velocities[gl_InstanceID].xyz;
     vec3 position = positions[gl_InstanceID].xyz;
 
+    coord = vec3(
+        float((gl_VertexID % 3) == 0),
+        float((gl_VertexID % 3) == 1),
+        float((gl_VertexID % 3) == 2)
+    );
+
     // Set color to a nice gradient depending on direction.
-    // fragColor.rgb = abs(normalize(velocity)) + 0.2;
-    fragColor.rgb = vec3(1, 0, 0);
+    fragColor.rgb = abs(normalize(velocity));
+    // fragColor.rgb = vec3(1, 0, 0);
     fragColor.a = 1.0;
+
     particleLivingDuration = currentTime - timesOfCreation[gl_InstanceID];
-    // timeOfCreation = timesOfCreation[gl_InstanceID];
-    // currentTimeOut = currentTime;
 
     // We want to do two things:
     // 1. Make the particle face the camera.
@@ -45,8 +51,8 @@ void main()
     // Point (1) we will achieve here by not multiplying by the view matrix,
     // since the view matrix will rotate the vertex. We only need the translation from it.
     // Therefore will add view-space world position at the end.
-    float scale = 0.005*particleScale;
-    vec3 vertexView = vertexPosition*scale;
+    float scale = 0.005 * particleScale;
+    vec3 vertexView = vertexPosition * scale;
 
     // With the triangle facing the camera, we want it to now point in the
     // direction of its movement (in view space).
@@ -55,24 +61,23 @@ void main()
     float velocityAngle = atan(velocityView.y, velocityView.x);
     float speed = length(velocityView);
 
-    // Our triangle's tip is currently at 90 degrees in view space.
-    // To make it point to velocityAngle, we rotate by (90-angle) degrees backwards (-1x).
-    float rot = velocityAngle - radians(90);
-
     // These are the two vectors for a clockwise rotation.
     // We perform essentially 2x2 matrix multiplication.
-    vec2 xvec = vec2(cos(rot), sin(rot));
-    vec2 yvec = vec2(-sin(rot), cos(rot));
+    vec2 xvec = vec2(cos(velocityAngle), sin(velocityAngle));
+    vec2 yvec = vec2(-sin(velocityAngle), cos(velocityAngle));
     vertexView.xy = vertexView.x * xvec + vertexView.y * yvec;
 
     // We scale the tip of the vertex by checking if gl_VertexID==2.
     // We avoid if* statements.
-    float isTip = float(gl_VertexID == 2);
-    float arrowLength = speed * 0.05;
-    vertexView.xy = vertexView.xy * (1 - isTip) + isTip * vertexView.xy * (arrowLength + 1);
+    // float isTip = float(gl_VertexID == 2);
+    // float arrowLength = speed * 1.05;
+    // vertexView.xy =
+    //     vertexView.xy * (1 - isTip)
+    //     + isTip * vertexView.xy * (arrowLength + 1);
 
-    // Add the particle position to the vertex (in view space).
+    // // Add the particle position to the vertex (in view space).
     vertexView += (viewMatrix * vec4(position, 1)).xyz;
+    // vertexView += position;
 
     // Calculate final vertex position.
     gl_Position = projectionMatrix * vec4(vertexView, 1);

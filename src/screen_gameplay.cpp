@@ -45,7 +45,7 @@ globalVar struct {
     // Particles.
     // ref: https://github.com/arceryz/raylib-gpu-particles/blob/master/main.c
     const int    particlesPerShaderInstance = 1024;
-    const int    numberOfInstances          = 1;
+    const int    numberOfInstances          = 20;
     Shader       particleShader;
     unsigned int particleComputeShader = 0;
     int          ssbo0;
@@ -407,14 +407,25 @@ void UpdateSSBOAsRingBuffer(
     int finishedIndex = (startedIndex + updatedElementsCount) % ssboElementsCount;
 
     if (startedIndex < finishedIndex) {
+        int   offset     = dataElementSize * startedIndex;
+        void* dataOffset = (void*)((char*)data + offset);
+
         rlUpdateShaderBuffer(
-            ssboID, data, dataElementSize * updatedElementsCount, startedIndex
+            ssboID, dataOffset, dataElementSize * updatedElementsCount, offset
         );
     }
     else {
         int firstUpdate  = ssboElementsCount - startedIndex;
         int secondUpdate = updatedElementsCount - firstUpdate;
-        rlUpdateShaderBuffer(ssboID, data, dataElementSize * firstUpdate, startedIndex);
+
+        void* firstDataOffset = (void*)((char*)data + firstUpdate);
+
+        rlUpdateShaderBuffer(
+            ssboID,
+            firstDataOffset,
+            dataElementSize * firstUpdate,
+            dataElementSize * startedIndex
+        );
         rlUpdateShaderBuffer(ssboID, data, dataElementSize * secondUpdate, 0);
     }
 }
@@ -527,7 +538,7 @@ PlayerState_Update_Function(Airborne_Update) {
 
         auto& position = gplayer.position;
 
-        auto oldPos = position;
+        const auto oldPos = position;
         position += gplayer.velocity * dt;
 
         if (gplayer.ropeActivated) {
@@ -547,8 +558,7 @@ PlayerState_Update_Function(Airborne_Update) {
         }
 
         // Particles generation.
-        // if (IsKeyDown(KEY_V)) {
-        {
+        if (IsKeyDown(KEY_V)) {
             const auto numParticles
                 = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
 
@@ -557,9 +567,9 @@ PlayerState_Update_Function(Airborne_Update) {
             int amountToGenerate = int(k * dt * gplayer.particlesAmountPerSecond) + 1;
             amountToGenerate     = Min(amountToGenerate, numParticles);
 
-            auto t = GetTime();
+            float t = (float)GetTime();
 
-            int startedAt = gdata.nextToGenerateParticleIndex;
+            const int startedIndex = gdata.nextToGenerateParticleIndex;
             FOR_RANGE (int, i, amountToGenerate) {
                 int ii = gdata.nextToGenerateParticleIndex % numParticles;
 
@@ -574,7 +584,7 @@ PlayerState_Update_Function(Airborne_Update) {
                     GetRandomFloat(-0.5, 0.5),
                     0
                 );
-                gdata.timesOfCreation[ii] = (float)t;
+                gdata.timesOfCreation[ii] = t;
 
                 gdata.nextToGenerateParticleIndex++;
                 if (gdata.nextToGenerateParticleIndex >= numParticles)
@@ -585,7 +595,7 @@ PlayerState_Update_Function(Airborne_Update) {
                 gdata.ssbo0,
                 (void*)gdata.positions,
                 sizeof(Vector4),
-                startedAt,
+                startedIndex,
                 amountToGenerate,
                 numParticles
             );
@@ -593,7 +603,7 @@ PlayerState_Update_Function(Airborne_Update) {
                 gdata.ssbo1,
                 (void*)gdata.velocities,
                 sizeof(Vector4),
-                startedAt,
+                startedIndex,
                 amountToGenerate,
                 numParticles
             );
@@ -601,7 +611,7 @@ PlayerState_Update_Function(Airborne_Update) {
                 gdata.ssbo2,
                 (void*)gdata.timesOfCreation,
                 sizeof(float),
-                startedAt,
+                startedIndex,
                 amountToGenerate,
                 numParticles
             );
@@ -685,6 +695,8 @@ void InitGameplayScreen(Arena& arena) {
             "resources/screens/gameplay/particle_fragment.glsl"
         );
 
+        // SetShaderValueTexture(gdata.particleShader, 4, gdata.);
+
         // Now we prepare the buffers that we connect to the shaders.
         // For each variable we want to give our particles, we create one buffer
         // called a Shader Storage Buffer Object containing a single variable type.
@@ -735,16 +747,19 @@ void InitGameplayScreen(Arena& arena) {
             // Our base particle mesh is a triangle on the unit circle.
             // We will rotate and stretch the triangle in the vertex shader.
             Vector3 vertices[] = {
-                {-0.86f, -0.5f, 0.0f},
-                {0.86f, -0.5f, 0.0f},
-                {0.0f, 1.0f, 0.0f},
+                {-0.5f, 0.86f, 0.0f}, {-0.5f, -0.86f, 0.0f}, {1.0f, 0.0f, 0.0f},
+                // {1, 0, 0},
+                // {0, 1, 0},
+                // {0, 0, 1},
             };
 
             // Configure the vertex array with a single attribute of vec3.
             // This is the input to the vertex shader.
             rlEnableVertexAttribute(0);
+            // rlEnableVertexAttribute(1);
             rlLoadVertexBuffer(vertices, sizeof(vertices), false);  // dynamic=false
             rlSetVertexAttribute(0, 3, RL_FLOAT, false, 0, 0);
+            // rlSetVertexAttribute(1, 3, RL_FLOAT, false, 0, vertices + 3);
         }
         rlDisableVertexArray();
     }
@@ -867,11 +882,11 @@ void UpdateGameplayScreen() {
             gplayer.collided = false;
     }
 
-    UpdateCamera(&gdata.camera, CAMERA_ORBITAL);
+    // UpdateCamera(&gdata.camera, CAMERA_ORBITAL);
 
     {  // Particles. Compute pass.
         float time      = (float)GetTime();
-        float timeScale = 1.2f;
+        float timeScale = 3.2f;
 
         const auto numParticles
             = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
@@ -903,8 +918,7 @@ void DrawGameplayScreen() {
     const auto    screenHeight = GetScreenHeight();
     const Vector2 screenSize{(float)screenWidth, (float)screenHeight};
 
-    // DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
-    DrawRectangle(0, 0, screenWidth, screenHeight, GRAY);
+    DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
 
     auto& camera    = gdata.camera;
     camera.position = gplayer.position + Vector3Up * 2.0f;
@@ -948,7 +962,7 @@ void DrawGameplayScreen() {
     UpdateCamera(&gdata.camera, CAMERA_ORBITAL);
 
     BeginMode3D(camera);
-    if (0) {  // Drawing world.
+    {  // Drawing world.
         FOR_RANGE (int, i, gdata.cubes.size()) {
             const auto& cube = gdata.cubes[i];
             const auto& pos
@@ -972,7 +986,15 @@ void DrawGameplayScreen() {
         }
     }
     {  // Particles. Drawing pass.
-        const float particleScale = 10.0;
+        // const auto oldDepthValue = glGet(GL_DEPTH_FUNC);
+
+        BeginBlendMode(BLEND_ALPHA);
+        // BeginBlendMode(BLEND_ADDITIVE);
+        defer {
+            EndBlendMode();
+        };
+
+        const float particleScale = 300.0;
         const auto  numParticles
             = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
 
@@ -983,7 +1005,7 @@ void DrawGameplayScreen() {
         // These will be used to make the particle face the camera and such.
         Matrix projection = rlGetMatrixProjection();
         Matrix view       = GetCameraMatrix(camera);
-        float  time       = GetTime();
+        float  time       = (float)GetTime();
 
         SetShaderValueMatrix(gdata.particleShader, 0, projection);
         SetShaderValueMatrix(gdata.particleShader, 1, view);
@@ -999,6 +1021,8 @@ void DrawGameplayScreen() {
         rlDrawVertexArrayInstanced(0, 3, numParticles);
         rlDisableVertexArray();
         rlDisableShader();
+
+        // glDepthFunc(oldDepthValue);
     }
     if (gdata.gizmosEnabled) {  // Drawing lines 3D.
         FOR_RANGE (int, i, gdata.linesToDraw.size() / 2) {

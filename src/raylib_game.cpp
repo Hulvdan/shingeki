@@ -1,7 +1,9 @@
 #include <memory>
 #include <vector>
 
+// NOLINTBEGIN(bugprone-suspicious-include)
 #include "raylib_hack_windows.cpp"
+// NOLINTEND(bugprone-suspicious-include)
 
 #include "raylib.h"
 #include "raymath.h"
@@ -78,7 +80,7 @@ int main() {
 
     Arena arena = {};
     arena.size  = 4096;
-    arena.base  = rcast<u8*>(malloc(arena.size));
+    arena.base  = (u8*)(RL_MALLOC(arena.size));
 
     // Setup and init first screen
     // currentScreen = GameScreen::TITLE;
@@ -120,7 +122,7 @@ int main() {
         break;
     }
 
-    free(arena.base);
+    RL_FREE(arena.base);
 
     // Unload global data loaded
     UnloadFont(font);

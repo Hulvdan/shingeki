@@ -19,22 +19,22 @@ struct CubeVoxel {
 };
 
 globalVar struct {
-    int  currentFPSValueIndex = 0;
-    bool gizmosEnabled        = true;
+    int  currentFPSValueIndex;
+    bool gizmosEnabled = true;
 
-    int finishScreen = 0;
+    int finishScreen;
 
-    Camera3D camera = {};
+    Camera3D camera;
 
-    PlayerState* states = nullptr;
+    PlayerState* states;
 
     Sound  fxJump;
     Sound  fxBoost;
     Sound  fxDash;
     Sound  fxGrapple;
     Sound  fxGrappleBack;
-    int    fxFootstepsCount = 0;
-    Sound* fxFootsteps      = nullptr;
+    int    fxFootstepsCount;
+    Sound* fxFootsteps;
 
     std::vector<CubeVoxel> cubes;
     std::vector<Color>     colors;
@@ -47,33 +47,33 @@ globalVar struct {
     const int    particlesPerShaderInstance = 1024;
     const int    numberOfInstances          = 20;
     Shader       particleShader;
-    unsigned int particleComputeShader = 0;
+    unsigned int particleComputeShader;
     int          ssbo0;
     int          ssbo1;
     int          ssbo2;
-    Vector4*     positions                   = nullptr;
-    Vector4*     velocities                  = nullptr;
-    float*       timesOfCreation             = nullptr;
-    int          nextToGenerateParticleIndex = 0;
+    Vector4*     positions;
+    Vector4*     velocities;
+    float*       timesOfCreation;
+    int          nextToGenerateParticleIndex;
     int          particleVao;
 } gdata;
 
 globalVar struct {
-    float   rotationY          = 0;
-    float   rotationHorizontal = 0;
-    Vector3 lookingDirection   = {};
+    float   rotationY;
+    float   rotationHorizontal;
+    Vector3 lookingDirection;
 
     Vector3 position = {0.0f, 0.0f, 1.0f};
-    Vector3 velocity = {};
+    Vector3 velocity;
 
-    PlayerState* currentState = nullptr;
+    PlayerState* currentState;
 
-    bool    collided           = false;
-    Vector3 lookingAtCollision = {};
+    bool    collided;
+    Vector3 lookingAtCollision;
 
-    bool    ropeActivated = false;
-    float   ropeLength    = 0;
-    Vector3 ropePos       = {};
+    bool    ropeActivated;
+    float   ropeLength;
+    Vector3 ropePos;
 
     double buttonGrapplePressedTime    = -floatInf;
     double buttonJumpPressedTime       = -floatInf;

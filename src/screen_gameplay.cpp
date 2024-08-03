@@ -1,5 +1,10 @@
 static constexpr int fpsValues[] = {60, 20, 40};
 #include <sstream>
+#include <algorithm>
+// #include <array>
+#include <functional>
+// #include <iostream>
+// #include <string_view>
 
 struct PlayerState;
 
@@ -642,46 +647,6 @@ PlayerState_Update_Function(Airborne_Update) {
             // startedIndex     = 0;
             // amountToGenerate = numParticles;
         }
-
-        if (1) {  // Сортировка частиц от точки "взора" игрока до них.
-            const auto eyePos = gplayer.position + Vector3Up * 2.0f;
-
-            FOR_RANGE (int, i1, numParticles) {
-                auto swapped = false;
-
-                FOR_RANGE (int, i2, numParticles - i1 - 1) {
-                    auto& pos1 = gdata.positions[i1];
-                    auto& pos2 = gdata.positions[i2];
-
-                    float d1 = Vector3Distance(eyePos, Vector3(pos1.x, pos1.y, pos1.z));
-                    float d2 = Vector3Distance(eyePos, Vector3(pos2.x, pos2.y, pos2.z));
-
-                    if (d2 > d1) {
-                        auto& vel1 = gdata.velocities[i1];
-                        auto& vel2 = gdata.velocities[i2];
-                        auto& toc1 = gdata.timesOfCreation[i1];
-                        auto& toc2 = gdata.timesOfCreation[i2];
-
-                        std::swap(pos1, pos2);
-                        std::swap(vel1, vel2);
-                        std::swap(toc1, toc2);
-                        swapped = true;
-                    }
-                }
-
-                if (!swapped)
-                    break;
-            }
-        }
-        UpdateSSBOAsRingBuffer(
-            gdata.ssbo0, (void*)gdata.positions, sizeof(Vector4), 0, 0, numParticles
-        );
-        UpdateSSBOAsRingBuffer(
-            gdata.ssbo1, (void*)gdata.velocities, sizeof(Vector4), 0, 0, numParticles
-        );
-        UpdateSSBOAsRingBuffer(
-            gdata.ssbo2, (void*)gdata.timesOfCreation, sizeof(float), 0, 0, numParticles
-        );
     }
 
     {  // Переход в Grounded состояние.
@@ -983,13 +948,38 @@ void UpdateGameplayScreen() {
         gdata.positions[i] += gdata.velocities[i] * dt;
     }
 
+    if (1) {  // Сортировка частиц от точки "взора" игрока до них.
+        const auto eyePos = gplayer.position + Vector3Up * 2.0f;
+
+        FOR_RANGE (int, i, numParticles - 1) {
+            FOR_RANGE (int, j, numParticles - i - 1) {
+                Vector4* const pos1 = gdata.positions + j;
+                Vector4* const pos2 = gdata.positions + j + 1;
+
+                float d1 = Vector3Distance(eyePos, Vector3(pos1->x, pos1->y, pos1->z));
+                float d2 = Vector3Distance(eyePos, Vector3(pos2->x, pos2->y, pos2->z));
+
+                if (d2 > d1) {
+                    Vector4* vel1 = gdata.velocities + j;
+                    Vector4* vel2 = gdata.velocities + j + 1;
+                    float*   toc1 = gdata.timesOfCreation + j;
+                    float*   toc2 = gdata.timesOfCreation + j + 1;
+
+                    std::swap(*pos1, *pos2);
+                    std::swap(*vel1, *vel2);
+                    std::swap(*toc1, *toc2);
+                }
+            }
+        }
+    }
     UpdateSSBOAsRingBuffer(
-        gdata.ssbo0,
-        (void*)gdata.positions,
-        sizeof(Vector4),
-        0,
-        numParticles,
-        numParticles
+        gdata.ssbo0, (void*)gdata.positions, sizeof(Vector4), 0, 0, numParticles
+    );
+    UpdateSSBOAsRingBuffer(
+        gdata.ssbo1, (void*)gdata.velocities, sizeof(Vector4), 0, 0, numParticles
+    );
+    UpdateSSBOAsRingBuffer(
+        gdata.ssbo2, (void*)gdata.timesOfCreation, sizeof(float), 0, 0, numParticles
     );
 }
 

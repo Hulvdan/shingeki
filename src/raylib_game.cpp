@@ -14,6 +14,7 @@
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "raylib_vector2.cpp"
 #include "raylib_vector3.cpp"
+#include "raylib_vector4.cpp"
 
 #include "base.cpp"
 #include "math.cpp"

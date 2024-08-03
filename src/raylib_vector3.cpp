@@ -59,6 +59,11 @@ Vector3& operator/=(Vector3& a, const float scale) {
     return a;
 }
 
+constexpr Vector2 Vector2Up    = Vector2(0, 1);
+constexpr Vector2 Vector2Down  = Vector2(0, -1);
+constexpr Vector2 Vector2Right = Vector2(1, 0);
+constexpr Vector2 Vector2Left  = Vector2(-1, 0);
+
 constexpr Vector3 Vector3Up       = Vector3(0, 1, 0);
 constexpr Vector3 Vector3Down     = Vector3(0, -1, 0);
 constexpr Vector3 Vector3Right    = Vector3(1, 0, 0);

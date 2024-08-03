@@ -7,7 +7,7 @@
 
 // This is the vertex position of the base particle!
 // This is the vertex attribute set in the code, index 0.
-layout (location=0) in vec2 vertexPosition;
+layout (location=0) in vec2 vertexPosition1;
 
 // Input uniform values.
 layout (location=0) uniform mat4 projectionMatrix;
@@ -28,8 +28,27 @@ out vec2  coord;
 
 void main()
 {
-    vec3 velocity = velocities[gl_InstanceID].xyz;
-    vec3 position = positions[gl_InstanceID].xyz;
+    vec2 vertexPosition = vec2(0, 0);
+
+    if (gl_InstanceID % 2 == 0) {
+        if (gl_VertexID % 3 == 0)
+            vertexPosition = vec2(-1, -1);
+        else if (gl_VertexID % 3 == 1)
+            vertexPosition = vec2(1, -1);
+        else
+            vertexPosition = vec2(-1, 1);
+    } else {
+        if (gl_VertexID % 3 == 0)
+            vertexPosition = vec2(-1, 1);
+        else if (gl_VertexID % 3 == 1)
+            vertexPosition = vec2(1, -1);
+        else
+            vertexPosition = vec2(1, 1);
+    }
+
+
+    vec3 velocity = velocities[int(gl_InstanceID / 2)].xyz;
+    vec3 position = positions[int(gl_InstanceID / 2)].xyz;
 
     coord = vertexPosition;
 
@@ -38,7 +57,7 @@ void main()
     // fragColor.rgb = vec3(1, 0, 0);
     fragColor.a = 1.0;
 
-    particleLivingDuration = currentTime - timesOfCreation[gl_InstanceID];
+    particleLivingDuration = currentTime - timesOfCreation[int(gl_InstanceID / 2)];
 
     // We want to do two things:
     // 1. Make the particle face the camera.

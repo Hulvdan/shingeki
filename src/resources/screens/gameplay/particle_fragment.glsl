@@ -1,10 +1,8 @@
 #version 430
 
-// layout (location=4) uniform sampler2D texture;
-
 in vec4  fragColor;
 in float particleLivingDuration;
-in vec3 coord;
+in vec2 coord;
 
 out vec4 finalColor;
 
@@ -24,17 +22,9 @@ void main()
     else
         finalColor.a = 1;
 
-    const float dx = 2.0 / 3.0 - coord.x;
-    const float dy = 2.0 / 3.0 - coord.y;
-    const float dz = 2.0 / 3.0 - coord.z;
-
-    const float dSquared  = dx * dx + dy * dy + dz * dz;
-    const float dSquaredX =           dy * dy + dz * dz;
-    const float dSquaredY = dx * dx +           dz * dz;
-    const float dSquaredZ = dx * dx + dy * dy          ;
-    const float d = sqrt(dSquared);
-    if (d > 2.0 / 3.0)
+    const float d = sqrt(coord.x * coord.x + coord.y * coord.y);
+    if (d > 1)
         discard;
 
-    finalColor.a *= min(min(sqrt(dSquaredX), sqrt(dSquaredY)), sqrt(dSquaredZ));
+    finalColor.a *= 1 - d;
 }

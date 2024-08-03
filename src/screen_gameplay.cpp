@@ -55,7 +55,8 @@ globalVar struct {
     Vector4*     velocities;
     float*       timesOfCreation;
     int          nextToGenerateParticleIndex;
-    int          particleVao;
+    int          particleVao1;
+    int          particleVao2;
 } gdata;
 
 globalVar struct {
@@ -741,25 +742,31 @@ void InitGameplayScreen(Arena& arena) {
         // For instancing we need a Vertex Array Object.
         // Raylib Mesh* is inefficient for millions of particles.
         // For info see: https://www.khronos.org/opengl/wiki/Vertex_Specification
-        gdata.particleVao = rlLoadVertexArray();
-        rlEnableVertexArray(gdata.particleVao);
+        gdata.particleVao1 = rlLoadVertexArray();
+        rlEnableVertexArray(gdata.particleVao1);
         {
-            // Our base particle mesh is a triangle on the unit circle.
-            // We will rotate and stretch the triangle in the vertex shader.
-            Vector3 vertices[] = {
-                {-0.5f, 0.86f, 0.0f}, {-0.5f, -0.86f, 0.0f}, {1.0f, 0.0f, 0.0f},
-                // {1, 0, 0},
-                // {0, 1, 0},
-                // {0, 0, 1},
+            Vector2 vertices[] = {
+                {-1, -1},
+                {1, -1},
+                {-1, 1},
             };
-
-            // Configure the vertex array with a single attribute of vec3.
-            // This is the input to the vertex shader.
             rlEnableVertexAttribute(0);
-            // rlEnableVertexAttribute(1);
             rlLoadVertexBuffer(vertices, sizeof(vertices), false);  // dynamic=false
-            rlSetVertexAttribute(0, 3, RL_FLOAT, false, 0, 0);
-            // rlSetVertexAttribute(1, 3, RL_FLOAT, false, 0, vertices + 3);
+            rlSetVertexAttribute(0, 2, RL_FLOAT, false, 0, 0);
+        }
+        rlDisableVertexArray();
+
+        gdata.particleVao2 = rlLoadVertexArray();
+        rlEnableVertexArray(gdata.particleVao2);
+        {
+            Vector2 vertices[] = {
+                {-1, 1},
+                {1, -1},
+                {1, 1},
+            };
+            rlEnableVertexAttribute(0);
+            rlLoadVertexBuffer(vertices, sizeof(vertices), false);  // dynamic=false
+            rlSetVertexAttribute(0, 2, RL_FLOAT, false, 0, 0);
         }
         rlDisableVertexArray();
     }
@@ -959,7 +966,6 @@ void DrawGameplayScreen() {
             }
         }
     }
-    UpdateCamera(&gdata.camera, CAMERA_ORBITAL);
 
     BeginMode3D(camera);
     {  // Drawing world.
@@ -1017,9 +1023,16 @@ void DrawGameplayScreen() {
         rlBindShaderBuffer(gdata.ssbo2, 2);
 
         // Draw the particles. Instancing will duplicate the vertices.
-        rlEnableVertexArray(gdata.particleVao);
-        rlDrawVertexArrayInstanced(0, 3, numParticles);
-        rlDisableVertexArray();
+        {
+            rlEnableVertexArray(gdata.particleVao1);
+            rlDrawVertexArrayInstanced(0, 3, numParticles);
+            rlDisableVertexArray();
+        }
+        {
+            rlEnableVertexArray(gdata.particleVao2);
+            rlDrawVertexArrayInstanced(0, 3, numParticles);
+            rlDisableVertexArray();
+        }
         rlDisableShader();
 
         // glDepthFunc(oldDepthValue);

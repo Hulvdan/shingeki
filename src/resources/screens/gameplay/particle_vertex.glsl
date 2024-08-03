@@ -30,6 +30,8 @@ void main()
 {
     vec2 vertexPosition = vec2(0, 0);
 
+    // По 3 вертекса на полигон для отображения частицы.
+    // По 2 полигона на частицу.
     if (gl_InstanceID % 2 == 0) {
         if (gl_VertexID % 3 == 0)
             vertexPosition = vec2(-1, -1);
@@ -45,7 +47,6 @@ void main()
         else
             vertexPosition = vec2(1, 1);
     }
-
 
     vec3 velocity = velocities[int(gl_InstanceID / 2)].xyz;
     vec3 position = positions[int(gl_InstanceID / 2)].xyz;

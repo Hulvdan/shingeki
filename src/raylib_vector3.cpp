@@ -1,68 +1,110 @@
+Vector3 ToVector3(Vector2 value) {
+    Vector3 result = {value.x, value.y, 0};
+
+    return result;
+}
+
+Vector3 ToVector3(Vector4 value) {
+    Vector3 result = {value.x, value.y, value.z};
+
+    return result;
+}
+
 Vector3 operator+(const Vector3& a) {
-    return Vector3(a.x, a.y, a.z);
+    Vector3 result = {a.x, a.y, a.z};
+
+    return result;
 }
+
 Vector3 operator-(const Vector3& a) {
-    return Vector3(-a.x, -a.y, -a.z);
+    Vector3 result = {-a.x, -a.y, -a.z};
+
+    return result;
 }
+
 Vector3 operator+(const Vector3& a, const Vector3& b) {
-    return Vector3Add(a, b);
+    Vector3 result = Vector3Add(a, b);
+
+    return result;
 }
+
 Vector3 operator-(const Vector3& a, const Vector3& b) {
-    return Vector3Subtract(a, b);
+    Vector3 result = Vector3Subtract(a, b);
+
+    return result;
 }
+
 Vector3 operator*(const Vector3& a, const float scale) {
-    return Vector3Scale(a, scale);
+    Vector3 result = Vector3Scale(a, scale);
+
+    return result;
 }
+
 Vector3 operator*(const Vector3& a, const Vector3& b) {
-    return Vector3Multiply(a, b);
+    Vector3 result = Vector3Multiply(a, b);
+
+    return result;
 }
+
 Vector3 operator/(const Vector3& a, const float scale) {
-    return Vector3(a.x / scale, a.y / scale, a.z / scale);
+    Vector3 result = {a.x / scale, a.y / scale, a.z / scale};
+
+    return result;
 }
+
 Vector3 operator/(const Vector3& a, const Vector3& b) {
-    return Vector3(a.x / b.x, a.y / b.y, a.z / b.z);
+    Vector3 result = {a.x / b.x, a.y / b.y, a.z / b.z};
+
+    return result;
 }
+
 Vector3& operator+=(Vector3& a, const Vector3& b) {
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
+
     return a;
 }
+
 Vector3& operator-=(Vector3& a, const Vector3& b) {
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
+
     return a;
 }
+
 Vector3& operator*=(Vector3& a, const Vector3& b) {
     a.x *= b.x;
     a.y *= b.y;
     a.z *= b.z;
+
     return a;
 }
+
 Vector3& operator*=(Vector3& a, const float scale) {
     a.x *= scale;
     a.y *= scale;
     a.z *= scale;
+
     return a;
 }
+
 Vector3& operator/=(Vector3& a, const Vector3& b) {
     a.x /= b.x;
     a.y /= b.y;
     a.z /= b.z;
+
     return a;
 }
+
 Vector3& operator/=(Vector3& a, const float scale) {
     a.x /= scale;
     a.y /= scale;
     a.z /= scale;
+
     return a;
 }
-
-constexpr Vector2 Vector2Up    = Vector2(0, 1);
-constexpr Vector2 Vector2Down  = Vector2(0, -1);
-constexpr Vector2 Vector2Right = Vector2(1, 0);
-constexpr Vector2 Vector2Left  = Vector2(-1, 0);
 
 constexpr Vector3 Vector3Up       = Vector3(0, 1, 0);
 constexpr Vector3 Vector3Down     = Vector3(0, -1, 0);

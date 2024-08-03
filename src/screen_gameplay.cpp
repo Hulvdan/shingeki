@@ -1,10 +1,5 @@
 static constexpr int fpsValues[] = {60, 20, 40};
 #include <sstream>
-#include <algorithm>
-// #include <array>
-#include <functional>
-// #include <iostream>
-// #include <string_view>
 
 struct PlayerState;
 
@@ -58,16 +53,14 @@ globalVar struct {
     // const int    numberOfInstances          = 20;
     const int numberOfInstances = 1;
     Shader    particleShader;
-    // unsigned int particleComputeShader;
-    int      ssbo0;
-    int      ssbo1;
-    int      ssbo2;
-    Vector4* positions;
-    Vector4* velocities;
-    float*   timesOfCreation;
-    int      nextToGenerateParticleIndex;
-    int      particleVao1;
-    // int          particleVao2;
+    int       ssbo0;
+    int       ssbo1;
+    int       ssbo2;
+    Vector4*  positions;
+    Vector4*  velocities;
+    float*    timesOfCreation;
+    int       nextToGenerateParticleIndex;
+    int       particleVao;
 } gdata;
 
 globalVar struct {
@@ -576,43 +569,6 @@ PlayerState_Update_Function(Airborne_Update) {
         const auto numParticles
             = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
 
-        // TODO: remove this
-        if (1) {  // DEBUG: Делаем так, чтобы всегда перед игроком отображались 2 частицы.
-            gdata.timesOfCreation[0] = (float)GetTime();
-            gdata.timesOfCreation[1] = (float)GetTime();
-            gdata.velocities[0]      = {0, 0, 0};
-            gdata.velocities[1]      = {0, 0, 0};
-
-            const auto p       = gplayer.position + Vector3{0, 1, 0} * 2.0f;
-            gdata.positions[0] = Vector4FromVector3(p + gplayer.lookingDirection * 10.0f);
-            gdata.positions[1] = Vector4FromVector3(p + gplayer.lookingDirection * 20.0f);
-
-            // UpdateSSBOAsRingBuffer(  //
-            //     gdata.ssbo0,
-            //     (void*)gdata.positions,
-            //     sizeof(Vector4),
-            //     0,
-            //     2,
-            //     numParticles
-            // );
-            // UpdateSSBOAsRingBuffer(  //
-            //     gdata.ssbo1,
-            //     (void*)gdata.velocities,
-            //     sizeof(Vector4),
-            //     0,
-            //     2,
-            //     numParticles
-            // );
-            // UpdateSSBOAsRingBuffer(  //
-            //     gdata.ssbo2,
-            //     (void*)gdata.timesOfCreation,
-            //     sizeof(float),
-            //     0,
-            //     2,
-            //     numParticles
-            // );
-        }
-
         // Particles generation.
         if (IsKeyDown(KEY_V)) {
             float k = Vector3Length(gplayer.velocity) / gplayer.maxVelocity;
@@ -629,7 +585,6 @@ PlayerState_Update_Function(Airborne_Update) {
                 auto p
                     = Vector3Lerp(oldPos, position, float(i) / float(amountToGenerate));
 
-                // gdata.positions[ii] = Vector4(0, 0, 0, 0);
                 gdata.positions[ii]  = Vector4(p.x, p.y, p.z, 0);
                 gdata.velocities[ii] = Vector4(
                     GetRandomFloat(-0.5, 0.5),
@@ -643,9 +598,6 @@ PlayerState_Update_Function(Airborne_Update) {
                 if (gdata.nextToGenerateParticleIndex >= numParticles)
                     gdata.nextToGenerateParticleIndex -= numParticles;
             }
-
-            // startedIndex     = 0;
-            // amountToGenerate = numParticles;
         }
     }
 
@@ -772,8 +724,8 @@ void InitGameplayScreen(Arena& arena) {
         // For instancing we need a Vertex Array Object.
         // Raylib Mesh* is inefficient for millions of particles.
         // For info see: https://www.khronos.org/opengl/wiki/Vertex_Specification
-        gdata.particleVao1 = rlLoadVertexArray();
-        rlEnableVertexArray(gdata.particleVao1);
+        gdata.particleVao = rlLoadVertexArray();
+        rlEnableVertexArray(gdata.particleVao);
         {
             Vector2 vertices[] = {
                 {-1, -1},
@@ -948,10 +900,13 @@ void UpdateGameplayScreen() {
         gdata.positions[i] += gdata.velocities[i] * dt;
     }
 
-    if (1) {  // Сортировка частиц от точки "взора" игрока до них.
+    // TODO: qsort
+    {  // Сортировка частиц от точки "взора" игрока до них.
         const auto eyePos = gplayer.position + Vector3Up * 2.0f;
 
         FOR_RANGE (int, i, numParticles - 1) {
+            bool swapped = false;
+
             FOR_RANGE (int, j, numParticles - i - 1) {
                 Vector4* const pos1 = gdata.positions + j;
                 Vector4* const pos2 = gdata.positions + j + 1;
@@ -968,8 +923,12 @@ void UpdateGameplayScreen() {
                     std::swap(*pos1, *pos2);
                     std::swap(*vel1, *vel2);
                     std::swap(*toc1, *toc2);
+
+                    swapped = true;
                 }
             }
+            if (!swapped)
+                break;
         }
     }
     UpdateSSBOAsRingBuffer(
@@ -1095,7 +1054,7 @@ void DrawGameplayScreen() {
 
         // Particles drawing. Instancing will duplicate the vertices.
         {
-            rlEnableVertexArray(gdata.particleVao1);
+            rlEnableVertexArray(gdata.particleVao);
             rlDrawVertexArrayInstanced(0, 3, 2 * numParticles);
             rlDisableVertexArray();
         }

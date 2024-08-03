@@ -18,11 +18,6 @@ struct CubeVoxel {
     int        colorIndex;
 };
 
-Vector4 Vector4FromVector3(Vector3 value) {
-    Vector4 result = {value.x, value.y, value.z, 0};
-    return result;
-}
-
 globalVar struct {
     int  currentFPSValueIndex;
     bool gizmosEnabled = true;
@@ -663,22 +658,10 @@ void InitGameplayScreen(Arena& arena) {
     gdata.camera.projection = CAMERA_PERSPECTIVE;
 
     {  // Particles.
-        // Compute shader for updating particles.
-        // if (gdata.particleComputeShader == 0) {
-        //     char* shaderCode
-        //         = LoadFileText("resources/screens/gameplay/particle_compute.glsl");
-        //     int shaderData              = rlCompileShader(shaderCode,
-        //     RL_COMPUTE_SHADER); gdata.particleComputeShader =
-        //     rlLoadComputeShaderProgram(shaderData); UnloadFileText(shaderCode);
-        // }
-
-        // Shader for constructing triangles and drawing.
         gdata.particleShader = LoadShader(
             "resources/screens/gameplay/particle_vertex.glsl",
             "resources/screens/gameplay/particle_fragment.glsl"
         );
-
-        // SetShaderValueTexture(gdata.particleShader, 4, gdata.);
 
         // Now we prepare the buffers that we connect to the shaders.
         // For each variable we want to give our particles, we create one buffer

@@ -101,7 +101,7 @@ globalVar struct {
     const float maxVelocity = 28.0f;
     const float dashImpulse = 200.0f;
 
-    const float particlesAmountPerSecond = 3000.0f;
+    const float particlesAmountPerSecond = 300.0f;
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -581,10 +581,11 @@ PlayerState_Update_Function(Airborne_Update) {
                     = Vector3Lerp(oldPos, position, float(i) / float(amountToGenerate));
 
                 gdata.positions[ii]  = Vector4(p.x, p.y, p.z, 0);
+                const float scale    = 0.2f;
                 gdata.velocities[ii] = Vector4(
-                    GetRandomFloat(-0.5, 0.5),
-                    GetRandomFloat(-0.5, 0.5),
-                    GetRandomFloat(-0.5, 0.5),
+                    GetRandomFloat(-0.5, 0.5) * scale,
+                    GetRandomFloat(-0.5, 0.5) * scale,
+                    GetRandomFloat(-0.5, 0.5) * scale,
                     0
                 );
                 gdata.timesOfCreation[ii] = t;
@@ -891,21 +892,21 @@ void UpdateGameplayScreen() {
             bool swapped = false;
 
             FOR_RANGE (int, j, numParticles - i - 1) {
-                Vector4* const pos1 = gdata.positions + j;
-                Vector4* const pos2 = gdata.positions + j + 1;
+                auto& pos1 = gdata.positions[j];
+                auto& pos2 = gdata.positions[j + 1];
 
-                float d1 = Vector3Distance(eyePos, Vector3(pos1->x, pos1->y, pos1->z));
-                float d2 = Vector3Distance(eyePos, Vector3(pos2->x, pos2->y, pos2->z));
+                float d1 = Vector3Distance(eyePos, Vector3(pos1.x, pos1.y, pos1.z));
+                float d2 = Vector3Distance(eyePos, Vector3(pos2.x, pos2.y, pos2.z));
 
                 if (d2 > d1) {
-                    Vector4* vel1 = gdata.velocities + j;
-                    Vector4* vel2 = gdata.velocities + j + 1;
-                    float*   toc1 = gdata.timesOfCreation + j;
-                    float*   toc2 = gdata.timesOfCreation + j + 1;
+                    auto& vel1 = gdata.velocities[j];
+                    auto& vel2 = gdata.velocities[j + 1];
+                    auto& toc1 = gdata.timesOfCreation[j];
+                    auto& toc2 = gdata.timesOfCreation[j + 1];
 
-                    std::swap(*pos1, *pos2);
-                    std::swap(*vel1, *vel2);
-                    std::swap(*toc1, *toc2);
+                    std::swap(pos1, pos2);
+                    std::swap(vel1, vel2);
+                    std::swap(toc1, toc2);
 
                     swapped = true;
                 }
@@ -1013,7 +1014,7 @@ void DrawGameplayScreen() {
             EndBlendMode();
         };
 
-        const float particleScale = 300.0;
+        const float particleScale = 100.0;
         const auto  numParticles
             = gdata.numberOfInstances * gdata.particlesPerShaderInstance;
 

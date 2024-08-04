@@ -234,6 +234,12 @@ def do_format(specific_files: list[str]) -> None:
 
 
 def do_lint() -> None:
+    # NOTE: Создание .clang-tidy файла, чтобы линтинг не ругался на внутренности raylib.
+    file_path = Path(".cmake") / ".clang-tidy"
+    if not file_path.exists():
+        with open(file_path, "w") as out_file:
+            out_file.write("Checks: '-*'")
+
     run_command(
         rf"""
             "{CLANG_TIDY_PATH}"

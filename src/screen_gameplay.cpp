@@ -370,7 +370,7 @@ void UpdateSSBOAsRingBuffer(
     int          updatedElementsCount,
     int          ssboElementsCount
 ) {
-#if 0
+#if 1
     rlUpdateShaderBuffer(ssboID, data, dataElementSize * ssboElementsCount, 0);
 #else
     int finishedIndex = (startedIndex + updatedElementsCount) % ssboElementsCount;

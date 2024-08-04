@@ -235,8 +235,8 @@ def do_format(specific_files: list[str]) -> None:
 
 def do_lint() -> None:
     run_command(
-        r"""
-            "C:/Program Files/LLVM/bin/clang-tidy.exe"
+        rf"""
+            "{CLANG_TIDY_PATH}"
             --use-color
             src\raylib_game.cpp
         """
@@ -268,6 +268,8 @@ def do_cmake_ninja_files() -> None:
             -B .cmake\ninja
             -D CMAKE_CXX_COMPILER=cl
             -D CMAKE_C_COMPILER=cl
+            -DCMAKE_UNITY_BUILD=ON
+            -DCMAKE_UNITY_BUILD_BATCH_SIZE=0
             --log-level=ERROR
         """
     )

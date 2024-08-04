@@ -1,21 +1,19 @@
 static constexpr int fpsValues[] = {60, 20, 40};
 #include <sstream>
 
+//----------------------------------------------------------------------------------
+// Forward declarations.
+//----------------------------------------------------------------------------------
 struct PlayerState;
+//----------------------------------------------------------------------------------
 
 const int PARTICLES_PER_SHADER_INSTANCE = 1024;
-const int NUMBER_OF_INSTANCES           = 1;
+const int NUMBER_OF_INSTANCES           = 4;
 const int NUM_PARTICLES = PARTICLES_PER_SHADER_INSTANCE * NUMBER_OF_INSTANCES;
 
 float GetRandomFloat(float from, float to) {
     return from + (to - from) * (float)GetRandomValue(0, INT_MAX) / INT_MAX;
 }
-
-struct Vector3Int {
-    int x;
-    int y;
-    int z;
-};
 
 struct CubeVoxel {
     Vector3Int pos;
@@ -48,10 +46,12 @@ globalVar struct {
 
     // Particles.
     // ref: https://github.com/arceryz/raylib-gpu-particles/blob/master/main.c
-    Shader   particleShader;
-    int      ssbo0;
-    int      ssbo1;
-    int      ssbo2;
+    Shader particleShader;
+    int    ssbo0;
+    int    ssbo1;
+    int    ssbo2;
+    // Данные частиц, время жизни которых закончилось,
+    // перемещаются в правые части массивов.
     Vector4* positions;
     Vector4* velocities;
     float*   timesOfCreation;
@@ -59,7 +59,7 @@ globalVar struct {
     int      particleVao;
 } gdata;
 
-globalVar struct {
+globalVar struct gplayer_ {
     float   rotationY;
     float   rotationHorizontal;
     Vector3 lookingDirection;
@@ -103,7 +103,7 @@ globalVar struct {
     inline static const float maxVelocity = 28.0f;
     inline static const float dashImpulse = 200.0f;
 
-    inline static const float particlesAmountPerSecond = 300.0f;
+    inline static const float particlesAmountPerSecond = 600.0f;
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -495,7 +495,7 @@ PlayerState_Update_Function(Airborne_Update) {
         gplayer.velocity += d;
     }
 
-    {  // gravity.
+    {  // Gravity.
         gplayer.velocity.y += dt * gplayer.gravity;
     }
 
@@ -652,8 +652,7 @@ void InitGameplayScreen(Arena& arena) {
 
     gdata.finishScreen = 0;
 
-    gdata.camera.target     = Vector3{0.0f, 0.0f, 0.0f};
-    gdata.camera.up         = Vector3{0.0f, 1.0f, 0.0f};
+    gdata.camera.up         = Vector3Up;
     gdata.camera.fovy       = gplayer.defaultFov;
     gdata.camera.projection = CAMERA_PERSPECTIVE;
 
@@ -680,8 +679,8 @@ void InitGameplayScreen(Arena& arena) {
         gdata.timesOfCreation = (float*)RL_MALLOC(sizeof(float) * NUM_PARTICLES);
 
         FOR_RANGE (int, i, NUM_PARTICLES) {
-            gdata.positions[i]       = Vector4(0, 0, 0, 0);
-            gdata.velocities[i]      = Vector4(0, 0, 0, 0);
+            gdata.positions[i]       = Vector4Zero();
+            gdata.velocities[i]      = Vector4Zero();
             gdata.timesOfCreation[i] = -100.0f;
         }
 
@@ -705,31 +704,15 @@ void InitGameplayScreen(Arena& arena) {
         // Raylib Mesh* is inefficient for millions of particles.
         // For info see: https://www.khronos.org/opengl/wiki/Vertex_Specification
         gdata.particleVao = rlLoadVertexArray();
-        rlEnableVertexArray(gdata.particleVao);
+        // rlEnableVertexArray(gdata.particleVao);
         {
-            Vector2 vertices[] = {
-                {-1, -1},
-                {1, -1},
-                {-1, 1},
-            };
-            rlEnableVertexAttribute(0);
-            rlLoadVertexBuffer(vertices, sizeof(vertices), false);  // dynamic=false
-            rlSetVertexAttribute(0, 2, RL_FLOAT, false, 0, 0);
+            // NOTE: Почему-то обяательно необходимо указывать данные вертексов для того,
+            // чтобы rlDrawVertexArrayInstanced отработал. Хотя тут эти данные не нужны.
+            // Vector2 vertices[] = {{}, {}, {}};
+            // rlEnableVertexAttribute(0);
+            // rlLoadVertexBuffer(vertices, sizeof(vertices), false);  // dynamic=false
+            // rlSetVertexAttribute(0, 2, RL_FLOAT, false, 0, 0);
         }
-        rlDisableVertexArray();
-
-        // gdata.particleVao2 = rlLoadVertexArray();
-        // rlEnableVertexArray(gdata.particleVao2);
-        // {
-        //     Vector2 vertices[] = {
-        //         {-1, 1},
-        //         {1, -1},
-        //         {1, 1},
-        //     };
-        //     rlEnableVertexAttribute(0);
-        //     rlLoadVertexBuffer(vertices, sizeof(vertices), false);  // dynamic=false
-        //     rlSetVertexAttribute(0, 2, RL_FLOAT, false, 0, 0);
-        // }
         // rlDisableVertexArray();
     }
     // ------------------------------------------------------------
@@ -766,7 +749,12 @@ void InitGameplayScreen(Arena& arena) {
             iss >> y;
             iss >> z;
             iss >> colorIndex;
-            gdata.cubes.push_back({x, y, z, colorIndex});
+
+            CubeVoxel cube  = {};
+            cube.pos        = Vector3Int(x, y, z);
+            cube.colorIndex = colorIndex;
+
+            gdata.cubes.push_back(cube);
         }
 
         UnloadFileText(data);
@@ -774,6 +762,8 @@ void InitGameplayScreen(Arena& arena) {
 
     DisableCursor();
 }
+
+static int numActiveParticles = 0;
 
 // Gameplay Screen Update logic.
 void UpdateGameplayScreen() {
@@ -824,11 +814,10 @@ void UpdateGameplayScreen() {
         FOR_RANGE (int, i, gdata.cubes.size()) {
             const auto& cube = gdata.cubes[i];
 
-            const auto cubePos
-                = Vector3((float)cube.pos.x, (float)cube.pos.y, (float)cube.pos.z);
-            BoundingBox box = {cubePos, cubePos + Vector3One()};
+            const auto        cubePos = ToVector3(cube.pos);
+            const BoundingBox box     = {cubePos, cubePos + Vector3One()};
 
-            RayCollision collision = GetRayCollisionBox(ray, box);
+            const RayCollision collision = GetRayCollisionBox(ray, box);
 
             if (collision.hit                          //
                 && (collision.distance < maxDistance)  //
@@ -851,43 +840,52 @@ void UpdateGameplayScreen() {
             gplayer.collided = false;
     }
 
-    // {  // Particles. Compute pass.
-    //     float time      = (float)GetTime();
-    //     float timeScale = 3.2f;
-    //
-    //     rlEnableShader(gdata.particleComputeShader);
-    //
-    //     // Set our parameters. The indices are set in the shader.
-    //     rlSetUniform(0, &time, SHADER_UNIFORM_FLOAT, 1);
-    //     rlSetUniform(1, &timeScale, SHADER_UNIFORM_FLOAT, 1);
-    //     rlSetUniform(2, &dt, SHADER_UNIFORM_FLOAT, 1);
-    //
-    //     rlBindShaderBuffer(gdata.ssbo0, 0);
-    //     rlBindShaderBuffer(gdata.ssbo1, 1);
-    //     // rlBindShaderBuffer(gdata.ssbo2, 2);
-    //
-    //     // We have NUM_PARTICLES/1024 workGroups. Each workgroup has size 1024.
-    //     rlComputeShaderDispatch(NUMBER_OF_INSTANCES, 1, 1);
-    //     rlDisableShader();
-    // }
-
     FOR_RANGE (int, i, NUM_PARTICLES) {
         gdata.positions[i] += gdata.velocities[i] * dt;
     }
 
-    // TODO: qsort
-    {  // Сортировка частиц от точки "взора" игрока до них.
+    {  // Сдвигаем вправо данные частиц, которые "отжили своё время". ("Move Zeros" alg.)
+        int left = 0;
+
+        const auto t = GetTime();
+
+        FOR_RANGE (int, right, NUM_PARTICLES) {
+            bool isExpired = t - gdata.timesOfCreation[right] > 7.0f;
+            if (isExpired)
+                continue;
+
+            auto& pos1 = gdata.positions[left];
+            auto& pos2 = gdata.positions[right];
+            auto& vel1 = gdata.velocities[left];
+            auto& vel2 = gdata.velocities[right];
+            auto& toc1 = gdata.timesOfCreation[left];
+            auto& toc2 = gdata.timesOfCreation[right];
+
+            std::swap(pos1, pos2);
+            std::swap(vel1, vel2);
+            std::swap(toc1, toc2);
+            left++;
+        }
+
+        numActiveParticles = left;
+        Assert(numActiveParticles <= NUM_PARTICLES);
+    }
+
+#if 0
+    // Сортировка частиц от точки "взора" игрока до них.
+    // TODO: better sort
+    {
         const auto eyePos = gplayer.position + Vector3Up * 2.0f;
 
-        FOR_RANGE (int, i, NUM_PARTICLES - 1) {
+        FOR_RANGE (int, i, numActiveParticles - 1) {
             bool swapped = false;
 
-            FOR_RANGE (int, j, NUM_PARTICLES - i - 1) {
+            FOR_RANGE (int, j, numActiveParticles - i - 1) {
                 auto& pos1 = gdata.positions[j];
                 auto& pos2 = gdata.positions[j + 1];
 
-                float d1 = Vector3Distance(eyePos, Vector3(pos1.x, pos1.y, pos1.z));
-                float d2 = Vector3Distance(eyePos, Vector3(pos2.x, pos2.y, pos2.z));
+                float d1 = Vector3Distance(eyePos, ToVector3(pos1));
+                float d2 = Vector3Distance(eyePos, ToVector3(pos2));
 
                 if (d2 > d1) {
                     auto& vel1 = gdata.velocities[j];
@@ -906,6 +904,8 @@ void UpdateGameplayScreen() {
                 break;
         }
     }
+#endif
+
     UpdateSSBOAsRingBuffer(
         gdata.ssbo0, (void*)gdata.positions, sizeof(Vector4), 0, 0, NUM_PARTICLES
     );
@@ -1022,9 +1022,13 @@ void DrawGameplayScreen() {
 
         // Particles drawing. Instancing will duplicate the vertices.
         {
+            rlDisableDepthMask();
+
             rlEnableVertexArray(gdata.particleVao);
             rlDrawVertexArrayInstanced(0, 3, 2 * NUM_PARTICLES);
             rlDisableVertexArray();
+
+            rlEnableDepthMask();
         }
         rlDisableShader();
     }
@@ -1085,7 +1089,7 @@ void DrawGameplayScreen() {
         gplayer.lookingDirection.y,
         gplayer.lookingDirection.z
     ));
-    // DebugTextDraw(TextFormat("rope length %.2f", gplayer.ropeLength));
+    DebugTextDraw(TextFormat("alive particles count %i", numActiveParticles));
     // DebugTextDraw(TextFormat("fov %.2f", camera.fovy));
 
     bool isAirborne

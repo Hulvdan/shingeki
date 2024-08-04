@@ -8,8 +8,8 @@ out vec4 finalColor;
 
 void main()
 {
-    const float opaqueDuration = 4;
-    const float fadeDuration = 3;
+    const float opaqueDuration = 8;
+    const float fadeDuration = 6;
     finalColor = fragColor;
     finalColor.rgb = vec3(1, 1, 1);
 

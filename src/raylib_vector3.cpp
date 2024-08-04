@@ -1,5 +1,17 @@
+struct Vector3Int {
+    int x;
+    int y;
+    int z;
+};
+
 Vector3 ToVector3(const float scalar) {
     Vector3 result(scalar, scalar, scalar);
+
+    return result;
+}
+
+Vector3 ToVector3(const Vector3Int v) {
+    Vector3 result((float)v.x, (float)v.y, (float)v.z);
 
     return result;
 }

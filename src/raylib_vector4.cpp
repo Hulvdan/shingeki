@@ -16,6 +16,12 @@ Vector4 ToVector4(const Vector3 v) {
     return result;
 }
 
+Vector4 Vector4Zero() {
+    Vector4 result = {};
+
+    return result;
+}
+
 Vector4 Vector4Add(const Vector4 v1, const Vector4 v2) {
     Vector4 result(  //
         v1.x + v2.x,

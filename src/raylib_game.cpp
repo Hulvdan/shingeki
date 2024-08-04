@@ -1,17 +1,20 @@
 #include <memory>
 #include <vector>
 
+// NOLINTBEGIN(bugprone-suspicious-include)
 #include "raylib_hack_windows.cpp"
+// NOLINTEND(bugprone-suspicious-include)
 
 #include "raylib.h"
 #include "raymath.h"
-#include "partikel.h"
+#include "rlgl.h"
 
-#include "doctest.h"
+#include "vendor/doctest.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "raylib_vector2.cpp"
 #include "raylib_vector3.cpp"
+#include "raylib_vector4.cpp"
 
 #include "base.cpp"
 #include "math.cpp"
@@ -74,11 +77,11 @@ int main() {
     fxCoin = LoadSound("resources/coin.wav");
 
     SetMusicVolume(music, 1.0f);
-    PlayMusicStream(music);
+    // PlayMusicStream(music);
 
     Arena arena = {};
     arena.size  = 4096;
-    arena.base  = rcast<u8*>(malloc(arena.size));
+    arena.base  = (u8*)(RL_MALLOC(arena.size));
 
     // Setup and init first screen
     // currentScreen = GameScreen::TITLE;
@@ -120,7 +123,7 @@ int main() {
         break;
     }
 
-    free(arena.base);
+    RL_FREE(arena.base);
 
     // Unload global data loaded
     UnloadFont(font);

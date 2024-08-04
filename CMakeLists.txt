@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_compile_definitions(GRAPHICS_API_OPENGL_43)
+
 #-----------------------------------------------------------------------------------
 # Dependencies.
 #-----------------------------------------------------------------------------------

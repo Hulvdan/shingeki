@@ -1,35 +1,72 @@
-Vector4 Vector4Add(const Vector4 v1, const Vector4 v2) {
-    Vector4 result = {v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w};
-
-    return result;
-};
-
-Vector4 Vector4Subtract(const Vector4 v1, const Vector4 v2) {
-    Vector4 result = {v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w};
-
-    return result;
-}
-
-Vector4 Vector4Multiply(const Vector4 v1, const Vector4 v2) {
-    Vector4 result = {v1.x * v2.x, v1.y * v2.y, v1.z * v2.z, v1.w * v2.w};
-
-    return result;
-}
-
-Vector4 Vector4Scale(const Vector4 v, const float scalar) {
-    Vector4 result = {v.x * scalar, v.y * scalar, v.z * scalar, v.w * scalar};
+Vector4 ToVector4(const float scalar) {
+    Vector4 result(scalar, scalar, scalar, scalar);
 
     return result;
 }
 
 Vector4 ToVector4(const Vector2 v) {
-    Vector4 result = {v.x, v.y, 0, 0};
+    Vector4 result(v.x, v.y, 0, 0);
 
     return result;
 }
 
 Vector4 ToVector4(const Vector3 v) {
     Vector4 result = {v.x, v.y, v.z, 0};
+
+    return result;
+}
+
+Vector4 Vector4Add(const Vector4 v1, const Vector4 v2) {
+    Vector4 result(  //
+        v1.x + v2.x,
+        v1.y + v2.y,
+        v1.z + v2.z,
+        v1.w + v2.w
+    );
+
+    return result;
+};
+
+Vector4 Vector4Subtract(const Vector4 v1, const Vector4 v2) {
+    Vector4 result(  //
+        v1.x - v2.x,
+        v1.y - v2.y,
+        v1.z - v2.z,
+        v1.w - v2.w
+    );
+
+    return result;
+}
+
+Vector4 Vector4Scale(const Vector4 v, const float scalar) {
+    Vector4 result(  //
+        v.x * scalar,
+        v.y * scalar,
+        v.z * scalar,
+        v.w * scalar
+    );
+
+    return result;
+}
+
+Vector4 Vector4Multiply(const Vector4 v1, const Vector4 v2) {
+    Vector4 result(  //
+        v1.x * v2.x,
+        v1.y * v2.y,
+        v1.z * v2.z,
+        v1.w * v2.w
+    );
+
+    return result;
+}
+
+Vector4 Vector4Divide(const Vector4 v1, const Vector4 v2) {
+    Vector4 result(  //
+        v1.x / v2.x,
+        v1.y / v2.y,
+        v1.z / v2.z,
+        v1.w / v2.w
+    );
 
     return result;
 }
@@ -47,37 +84,37 @@ Vector4 operator-(const Vector4& v) {
 }
 
 Vector4 operator+(const Vector4& v1, const Vector4& v2) {
-    Vector4 result = {v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w};
+    Vector4 result = Vector4Add(v1, v2);
 
     return result;
 }
 
 Vector4 operator-(const Vector4& v1, const Vector4& v2) {
-    Vector4 result = {v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w};
+    Vector4 result = Vector4Subtract(v1, v2);
 
     return result;
 }
 
 Vector4 operator*(const Vector4& v, float scalar) {
-    Vector4 result = {v.x * scalar, v.y * scalar, v.z * scalar, v.w * scalar};
+    Vector4 result = Vector4Scale(v, scalar);
 
     return result;
 }
 
 Vector4 operator*(const Vector4& v1, const Vector4& v2) {
-    Vector4 result = {v1.x * v2.x, v1.y * v2.y, v1.z * v2.z, v1.w * v2.w};
+    Vector4 result = Vector4Multiply(v1, v2);
 
     return result;
 }
 
 Vector4 operator/(const Vector4& v, const float scalar) {
-    Vector4 result = {v.x / scalar, v.y / scalar, v.z / scalar, v.w / scalar};
+    Vector4 result = Vector4Scale(v, 1.0f / scalar);
 
     return result;
 }
 
 Vector4 operator/(const Vector4& v1, const Vector4& v2) {
-    Vector4 result = {v1.x / v2.x, v1.y / v2.y, v1.z / v2.z, v1.w / v2.w};
+    Vector4 result = Vector4Divide(v1, v2);
 
     return result;
 }

@@ -10,10 +10,11 @@ struct Arena {
 #define AllocateArray(arena, type, count) \
     rcast<type*>(Allocate_(arena, sizeof(type) * (count)))
 
-#define AllocateaZerosFor(arena, type) rcast<type*>(AllocateZeros_(arena, sizeof(type)))
+#define AllocateZerosFor(arena, type) rcast<type*>(AllocateZeros_(arena, sizeof(type)))
 #define AllocateZerosArray(arena, type, count) \
     rcast<type*>(AllocateZeros_(arena, sizeof(type) * (count)))
 
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define AllocateArrayAndInitialize(arena, type, count)                     \
     [&]() {                                                                \
         auto ptr = rcast<type*>(Allocate_(arena, sizeof(type) * (count))); \
@@ -22,6 +23,7 @@ struct Arena {
         }                                                                  \
         return ptr;                                                        \
     }()
+// NOLINTEND(bugprone-macro-parentheses)
 
 #define DeallocateArray(arena, type, count) Deallocate_(arena, sizeof(type) * (count))
 

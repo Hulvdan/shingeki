@@ -50,7 +50,7 @@ void ButtonTextDraw(const char* text, double* pressedAt, bool enabled) {
     const float activatedDuration = 0.4f;
     const auto  t                 = GetTime();
 
-    Color color = WHITE;
+    auto color = WHITE;
     if (!enabled)
         color = GRAY;
 

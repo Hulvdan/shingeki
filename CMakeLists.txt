@@ -35,6 +35,7 @@ endif()
 # Game.
 #-----------------------------------------------------------------------------------
 add_executable(${PROJECT_NAME} src/raylib_game.cpp)
+target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
@@ -77,6 +78,7 @@ endif()
 # Tests.
 #-----------------------------------------------------------------------------------
 add_executable(tests src/tests.cpp)
+target_include_directories(tests PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 target_compile_definitions(tests PRIVATE TESTS)
 
 set_target_properties(tests PROPERTIES
@@ -91,4 +93,11 @@ if (APPLE)
     target_link_libraries(tests "-framework Cocoa")
     target_link_libraries(tests "-framework OpenGL")
 endif()
+
+#-----------------------------------------------------------------------------------
+# Enabling Linting On Win32.
+#-----------------------------------------------------------------------------------
+IF(WIN32 AND CMAKE_GENERATOR STREQUAL Ninja)
+    include_directories("${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
+ENDIf()
 

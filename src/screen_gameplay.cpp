@@ -20,70 +20,70 @@ struct CubeVoxel {
     int        colorIndex;
 };
 
-globalVar struct {
-    int  currentFPSValueIndex;
-    bool gizmosEnabled = true;
+globalVar struct gdata_ {
+    int  currentFPSValueIndex = 0;
+    bool gizmosEnabled        = true;
 
-    int finishScreen;
+    int finishScreen = 0;
 
-    Camera3D camera;
+    Camera3D camera = {};
 
-    PlayerState* states;
+    PlayerState* states = nullptr;
 
-    Sound  fxJump;
-    Sound  fxBoost;
-    Sound  fxDash;
-    Sound  fxGrapple;
-    Sound  fxGrappleBack;
-    int    fxFootstepsCount;
-    Sound* fxFootsteps;
+    Sound  fxJump           = {};
+    Sound  fxBoost          = {};
+    Sound  fxDash           = {};
+    Sound  fxGrapple        = {};
+    Sound  fxGrappleBack    = {};
+    int    fxFootstepsCount = {};
+    Sound* fxFootsteps      = {};
 
-    std::vector<CubeVoxel> cubes;
-    std::vector<Color>     colors;
+    std::vector<CubeVoxel> cubes  = {};
+    std::vector<Color>     colors = {};
 
-    std::vector<Vector3> linesToDraw;
-    std::vector<Color>   colorsOfLines;
+    std::vector<Vector3> linesToDraw   = {};
+    std::vector<Color>   colorsOfLines = {};
 
     // Particles.
     // ref: https://github.com/arceryz/raylib-gpu-particles/blob/master/main.c
-    Shader particleShader;
-    int    ssbo0;
-    int    ssbo1;
-    int    ssbo2;
+    Shader       particleShader = {};
+    unsigned int ssbo0          = 0;
+    unsigned int ssbo1          = 0;
+    unsigned int ssbo2          = 0;
     // Данные частиц, время жизни которых закончилось,
     // перемещаются в правые части массивов.
-    Vector4* positions;
-    Vector4* velocities;
-    float*   timesOfCreation;
-    int      nextToGenerateParticleIndex;
-    int      particleVao;
+    Vector4*     positions                   = nullptr;
+    Vector4*     velocities                  = nullptr;
+    float*       timesOfCreation             = nullptr;
+    int          nextToGenerateParticleIndex = 0;
+    unsigned int particleVao                 = 0;
 } gdata;
 
 globalVar struct gplayer_ {
-    float   rotationY;
-    float   rotationHorizontal;
-    Vector3 lookingDirection;
+    float   rotationY          = 0;
+    float   rotationHorizontal = 0;
+    Vector3 lookingDirection   = {};
 
     Vector3 position = {0.0f, 0.0f, 1.0f};
-    Vector3 velocity;
+    Vector3 velocity = {};
 
-    PlayerState* currentState;
+    PlayerState* currentState = nullptr;
 
-    bool    collided;
-    Vector3 lookingAtCollision;
+    bool    collided           = false;
+    Vector3 lookingAtCollision = {};
 
-    bool    ropeActivated;
-    float   ropeLength;
-    Vector3 ropePos;
+    bool    ropeActivated = false;
+    float   ropeLength    = 0;
+    Vector3 ropePos       = {};
 
-    double buttonGrapplePressedTime    = -floatInf;
-    double buttonJumpPressedTime       = -floatInf;
-    double buttonBoostPressedTime      = -floatInf;
-    double buttonDashPressedTime       = -floatInf;
-    double buttonClearPathsPressedTime = -floatInf;
+    double buttonGrapplePressedTime    = -doubleInf;
+    double buttonJumpPressedTime       = -doubleInf;
+    double buttonBoostPressedTime      = -doubleInf;
+    double buttonDashPressedTime       = -doubleInf;
+    double buttonClearPathsPressedTime = -doubleInf;
 
-    double lastBoostTime = -floatInf;
-    double lastDashTime  = -floatInf;
+    double lastBoostTime = -doubleInf;
+    double lastDashTime  = -doubleInf;
 
     inline static const float fromDefaultToDashFovDuration = 0.1f;
     inline static const float fromDashToDefaultFovDuration = 1.0f;
@@ -111,9 +111,6 @@ globalVar struct gplayer_ {
 //----------------------------------------------------------------------------------
 Vector2 GetPlayerMovementControlVector() {
     Vector2 result = {};
-
-    bool  move      = true;
-    float direction = 0;
 
     if (IsKeyDown(KEY_A))
         result.x -= 1;
@@ -144,9 +141,8 @@ void DrawRope(Vector3 from, Vector3 to) {
     const Color color    = {211, 202, 181, 255};
     const auto  distance = Vector3Distance(to, from);
 
-    const auto  middlePoint = (from + to) / 2.0f;
-    const int   slices      = 16;
-    const float radius      = 0.1f;
+    const int   slices = 16;
+    const float radius = 0.1f;
 
     Mesh  cylinderMesh = GenMeshCylinder(radius, distance, slices);
     Model model        = LoadModelFromMesh(cylinderMesh);
@@ -277,45 +273,17 @@ int signof(float value) {
 
 Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDirection) {
     if (gdata.gizmosEnabled) {
-        const float   displacement = 0.3f;
-        const Vector3 points[]     = {
-            {displacement, 0, displacement},
-            {-displacement, 0, displacement},
-            {-displacement, 0, -displacement},
-            {displacement, 0, -displacement},
-        };
-        const int pointIndices[] = {0, 1, 1, 2, 2, 3, 3, 0, 1, 3, 0, 2};
+        gdata.linesToDraw.push_back(gplayer.position);
+        gdata.linesToDraw.push_back(
+            gplayer.position + Vector3Normalize(gplayer.ropePos - gplayer.position) * 0.2f
+        );
+        gdata.colorsOfLines.push_back(WHITE);
 
-        // FOR_RANGE (int, i, 6) {
-        //     auto p1 = points[pointIndices[i * 2]];
-        //     auto p2 = points[pointIndices[i * 2 + 1]];
-        //
-        //     auto axis      = HorizontalAxisOf(ropeDirection);
-        //     auto angle     = -Vector3Angle(Vector3Up, ropeDirection);
-        //     auto p1Rotated = Vector3RotateByAxisAngle(p1, axis, angle);
-        //     auto p2Rotated = Vector3RotateByAxisAngle(p2, axis, angle);
-        //
-        //     if (gdata.gizmosEnabled) {
-        //         gdata.linesToDraw.push_back(gplayer.position + p1Rotated);
-        //         gdata.linesToDraw.push_back(gplayer.position + p2Rotated);
-        //         gdata.colorsOfLines.push_back(WHITE);
-        //     }
-        // }
-        if (gdata.gizmosEnabled) {
-            gdata.linesToDraw.push_back(gplayer.position);
-            gdata.linesToDraw.push_back(
-                gplayer.position
-                + Vector3Normalize(gplayer.ropePos - gplayer.position) * 0.2f
-            );
-            gdata.colorsOfLines.push_back(WHITE);
-
-            gdata.linesToDraw.push_back(gplayer.ropePos);
-            gdata.linesToDraw.push_back(
-                gplayer.ropePos
-                + Vector3Normalize(gplayer.position - gplayer.ropePos) * 0.2f
-            );
-            gdata.colorsOfLines.push_back(WHITE);
-        }
+        gdata.linesToDraw.push_back(gplayer.ropePos);
+        gdata.linesToDraw.push_back(
+            gplayer.ropePos + Vector3Normalize(gplayer.position - gplayer.ropePos) * 0.2f
+        );
+        gdata.colorsOfLines.push_back(WHITE);
     }
 
     auto axis     = HorizontalAxisOf(ropeDirection);
@@ -328,10 +296,6 @@ Vector3 TransformVelocityBasedOnRopeDirection(Vector3 velocity, Vector3 ropeDire
                   + axis * Vector3DotProduct(axis, velocity);
 
     if (gdata.gizmosEnabled) {
-        // gdata.linesToDraw.push_back(gplayer.position + pRotated);
-        // gdata.linesToDraw.push_back(gplayer.position);
-        // gdata.colorsOfLines.push_back(RED);
-
         gdata.linesToDraw.push_back(gplayer.position + Vector3Normalize(result));
         gdata.linesToDraw.push_back(gplayer.position);
         gdata.colorsOfLines.push_back(GREEN);
@@ -399,14 +363,14 @@ TEST_CASE ("TransformVelocityBasedOnRopeDirection") {
 }
 
 void UpdateSSBOAsRingBuffer(
-    int   ssboID,
-    void* data,
-    int   dataElementSize,
-    int   startedIndex,
-    int   updatedElementsCount,
-    int   ssboElementsCount
+    unsigned int ssboID,
+    void*        data,
+    int          dataElementSize,
+    int          startedIndex,
+    int          updatedElementsCount,
+    int          ssboElementsCount
 ) {
-#if 1
+#if 0
     rlUpdateShaderBuffer(ssboID, data, dataElementSize * ssboElementsCount, 0);
 #else
     int finishedIndex = (startedIndex + updatedElementsCount) % ssboElementsCount;
@@ -475,8 +439,6 @@ PlayerState_Update_Function(Airborne_Update) {
         // направлению обратному гравитации, когда игрок не использует буст.
         if (!IsKeyDown(KEY_V))
             controlVector.y = Max(0, controlVector.y);
-
-        const auto controlVector3 = Vector3(controlVector.x, 0, controlVector.y);
 
         auto d = gplayer.lookingDirection * (controlVector.y * gplayer.airSpeed * dt)
                  + axis * (controlVector.x * gplayer.airSpeed * dt);
@@ -570,9 +532,8 @@ PlayerState_Update_Function(Airborne_Update) {
             int amountToGenerate = int(k * dt * gplayer.particlesAmountPerSecond) + 1;
             amountToGenerate     = Min(amountToGenerate, NUM_PARTICLES);
 
-            float t = (float)GetTime();
+            auto t = (float)GetTime();
 
-            int startedIndex = gdata.nextToGenerateParticleIndex;
             FOR_RANGE (int, i, amountToGenerate) {
                 int ii = gdata.nextToGenerateParticleIndex % NUM_PARTICLES;
 
@@ -633,7 +594,6 @@ void InitGameplayScreen(Arena& arena) {
             = {Airborne_OnEnter, Airborne_OnExit, Airborne_Update};
     }
     if (gdata.fxFootsteps == nullptr) {
-        auto& footsteps   = gdata.fxFootsteps;
         gdata.fxFootsteps = AllocateArray(arena, Sound, 5);
 
         FOR_RANGE (int, i, 5) {
@@ -727,7 +687,9 @@ void InitGameplayScreen(Arena& arena) {
         gdata.colors.reserve(colorsCount);
 
         FOR_RANGE (int, i, colorsCount) {
-            int r, g, b = 0;
+            int r = 0;
+            int g = 0;
+            int b = 0;
             iss >> r;
             iss >> g;
             iss >> b;
@@ -744,7 +706,10 @@ void InitGameplayScreen(Arena& arena) {
         gdata.cubes.reserve(cubesCount);
 
         FOR_RANGE (int, i, cubesCount) {
-            int x, y, z, colorIndex = 0;
+            int x          = 0;
+            int y          = 0;
+            int z          = 0;
+            int colorIndex = 0;
             iss >> x;
             iss >> y;
             iss >> z;
@@ -800,9 +765,7 @@ void UpdateGameplayScreen() {
     gplayer.currentState->Update(dt);
 
     {
-        const float    maxDistance      = 20.0f;
-        const Vector3& lookingDirection = gplayer.lookingDirection;
-        const Vector3& playerPosition   = gplayer.position;
+        const float maxDistance = 20.0f;
 
         bool    collided             = false;
         float   minCollisionDistance = floatInf;
@@ -811,9 +774,7 @@ void UpdateGameplayScreen() {
 
         Ray ray = {gplayer.position + Vector3Up * 2.0f, gplayer.lookingDirection};
 
-        FOR_RANGE (int, i, gdata.cubes.size()) {
-            const auto& cube = gdata.cubes[i];
-
+        for (const auto& cube : gdata.cubes) {
             const auto        cubePos = ToVector3(cube.pos);
             const BoundingBox box     = {cubePos, cubePos + Vector3One()};
 
@@ -921,11 +882,8 @@ void UpdateGameplayScreen() {
 void DrawGameplayScreen() {
     DebugTextReset();
 
-    const auto dt = GetFrameTime();
-
-    const auto    screenWidth  = GetScreenWidth();
-    const auto    screenHeight = GetScreenHeight();
-    const Vector2 screenSize{(float)screenWidth, (float)screenHeight};
+    const auto screenWidth  = GetScreenWidth();
+    const auto screenHeight = GetScreenHeight();
 
     DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
 
@@ -934,8 +892,8 @@ void DrawGameplayScreen() {
     camera.target   = camera.position + gplayer.lookingDirection * 100.0f;
 
     {  // FOV.
-        const float dashElapsed          = (float)(GetTime() - gplayer.lastDashTime);
-        const bool  dashAnimationExpired = dashElapsed
+        const auto dashElapsed          = (float)(GetTime() - gplayer.lastDashTime);
+        const bool dashAnimationExpired = dashElapsed
                                           > (gplayer.fromDefaultToDashFovDuration
                                              + gplayer.fromDashToDefaultFovDuration);
 
@@ -1009,7 +967,7 @@ void DrawGameplayScreen() {
         // These will be used to make the particle face the camera and such.
         Matrix projection = rlGetMatrixProjection();
         Matrix view       = GetCameraMatrix(camera);
-        float  time       = (float)GetTime();
+        auto   time       = (float)GetTime();
 
         SetShaderValueMatrix(gdata.particleShader, 0, projection);
         SetShaderValueMatrix(gdata.particleShader, 1, view);
@@ -1034,7 +992,7 @@ void DrawGameplayScreen() {
     }
 
     if (gdata.gizmosEnabled) {  // Drawing lines 3D.
-        FOR_RANGE (int, i, gdata.linesToDraw.size() / 2) {
+        FOR_RANGE (size_t, i, gdata.linesToDraw.size() / 2) {
             auto& p1 = gdata.linesToDraw[i * 2];
             auto& p2 = gdata.linesToDraw[i * 2 + 1];
             DrawLine3D(p1, p2, gdata.colorsOfLines[i]);

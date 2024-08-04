@@ -9,7 +9,7 @@
 #include "raymath.h"
 #include "rlgl.h"
 
-#include "vendor/doctest.h"
+#include "doctest.h"
 
 // NOLINTBEGIN(bugprone-suspicious-include)
 #include "raylib_vector2.cpp"

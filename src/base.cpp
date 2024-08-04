@@ -1,8 +1,10 @@
 #define globalVar static
 #define localPersist static
 
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define FOR_RANGE(type, variable_name, max_value_exclusive) \
     for (type variable_name = 0; (variable_name) < (max_value_exclusive); variable_name++)
+// NOLINTEND(bugprone-macro-parentheses)
 
 #define INVALID_PATH Assert(false)
 #define NOT_IMPLEMENTED Assert(false)
@@ -25,33 +27,37 @@
 
 using u8 = char;
 
-constexpr float floatInf = std::numeric_limits<float>::infinity();
+constexpr float  floatInf  = std::numeric_limits<float>::infinity();
+constexpr double doubleInf = std::numeric_limits<double>::infinity();
 
 //----------------------------------------------------------------------------------
 // Defer.
 //----------------------------------------------------------------------------------
 template <typename F>
-struct _Defer {
-    _Defer(F f)
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+struct Defer_ {
+    Defer_(F f)
         : f(f) {}
-    ~_Defer() {
+    ~Defer_() {
         f();
     }
     F f;
 };
 
 template <typename F>
-_Defer<F> _makeDefer(F f) {
-    return _Defer<F>(f);
+Defer_<F> makeDefer_(F f) {
+    return Defer_<F>(f);
 };
 
-#define __defer(counter) defer_##counter
-#define _defer(counter) __defer(counter)
+#define defer_with_counter_(counter) defer_##counter
+#define defer_(counter) defer_with_counter_(counter)
 
-struct _defer_dummy {};
+struct defer_dummy_ {};
+
 template <typename F>
-_Defer<F> operator+(_defer_dummy, F&& f) {
-    return _makeDefer<F>(std::forward<F>(f));
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+Defer_<F> operator+(defer_dummy_, F&& f) {
+    return makeDefer_<F>(std::forward<F>(f));
 }
 
 // Usage:
@@ -64,4 +70,5 @@ _Defer<F> operator+(_defer_dummy, F&& f) {
 //     Normal
 //     Deferred
 //
-#define defer auto _defer(__COUNTER__) = _defer_dummy() + [&]()
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
+#define defer auto defer_(__COUNTER__) = defer_dummy_() + [&]()

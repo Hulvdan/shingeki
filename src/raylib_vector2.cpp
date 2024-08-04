@@ -53,10 +53,9 @@ Vector2 operator*(const Vector2& v1, const Vector2& v2) {
 }
 
 Vector2 operator/(const Vector2& v, const float scale) {
-    return v;
-    // Vector2 result = Vector2Scale(v, 1.0f / scale);
-    //
-    // return result;
+    Vector2 result = Vector2Scale(v, 1.0f / scale);
+
+    return result;
 }
 
 Vector2 operator/(const Vector2& v1, const Vector2& v2) {

@@ -1,6 +1,5 @@
 static constexpr int fpsValues[] = {60, 20, 40};
 #include <sstream>
-#include "raygui.h"
 
 //----------------------------------------------------------------------------------
 // Forward declarations.
@@ -20,6 +19,16 @@ struct CubeVoxel {
     Vector3Int pos;
     int        colorIndex;
 };
+
+globalVar struct fortesting_ {
+    float amountToGenerate = 737;
+    float angle            = 16.2f;
+
+    float minVelocity       = 0.65f;
+    float maxVelocity       = 4.1f;
+    float minLivingDuration = 0.9f;
+    float maxLivingDuration = 9.9f;
+} fortesting;
 
 globalVar struct gdata_ {
     int  currentFPSValueIndex = 0;
@@ -363,7 +372,7 @@ TEST_CASE ("TransformVelocityBasedOnRopeDirection") {
     }
 }
 
-void UpdateSSBOAsRingBuffer(
+void UpdateSSBO(
     unsigned int ssboID,
     void*        data,
     int          dataElementSize,
@@ -477,19 +486,19 @@ PlayerState_Update_Function(Airborne_Update) {
 
             // Particles.
             {
-                const float angle = 45.0f * DEG2RAD;
-                auto        v1
+                const float angle = fortesting.angle * DEG2RAD;
+
+                auto v1
                     = Vector3Normalize(Vector3CrossProduct(gplayer.velocity, Vector3Up));
 
                 // TODO: закинуть частицу в массив.
                 float k = Vector3Length(gplayer.velocity) / gplayer.maxVelocity;
 
                 // int amountToGenerate = MIN(300, NUM_PARTICLES);
-                int amountToGenerate = 300;
 
-                auto t = (float)GetTime();
+                auto time = (float)GetTime();
 
-                FOR_RANGE (int, i, amountToGenerate) {
+                FOR_RANGE (int, i, (int)fortesting.amountToGenerate) {
                     int ii = gdata.nextToGenerateParticleIndex % NUM_PARTICLES;
 
                     gdata.positions[ii] = ToVector4(gplayer.position);
@@ -502,11 +511,18 @@ PlayerState_Update_Function(Airborne_Update) {
                         particleVelocity, gplayer.velocity, GetRandomFloat(0, 2 * PI)
                     );
 
-                    float scale = 2.2f;
-                    scale *= GetRandomFloat(0.1f, 1.2f);
+                    auto t = GetRandomFloat(0.0f, 1.0f);
 
-                    gdata.velocities[ii]      = ToVector4(particleVelocity) * scale;
-                    gdata.timesOfCreation[ii] = t - 10.0f - scale * 2.0f;
+                    auto livingDuration = Lerp(
+                        fortesting.maxLivingDuration, fortesting.minLivingDuration, t
+                    );
+
+                    auto v = particleVelocity
+                             * Lerp(fortesting.minVelocity, fortesting.maxVelocity, t);
+                    gdata.velocities[ii] = ToVector4(v);
+
+                    auto timeOfCreation       = time - 14 + livingDuration;
+                    gdata.timesOfCreation[ii] = timeOfCreation;
 
                     gdata.nextToGenerateParticleIndex++;
                     if (gdata.nextToGenerateParticleIndex >= NUM_PARTICLES)
@@ -779,6 +795,11 @@ void UpdateGameplayScreen() {
     if (IsKeyPressed(KEY_ENTER))
         gdata.finishScreen = 1;
 
+    if (IsKeyPressed(KEY_R))
+        EnableCursor();
+    if (IsKeyReleased(KEY_R))
+        DisableCursor();
+
     {  // Controlling FPS.
         if (IsKeyPressed(KEY_F1)) {
             gdata.currentFPSValueIndex++;
@@ -804,7 +825,7 @@ void UpdateGameplayScreen() {
 
     gplayer.currentState->Update(dt);
 
-    {
+    {  // Проверяем на коллизии то, куда смотрит игрок.
         const float maxDistance = 20.0f;
 
         bool    collided             = false;
@@ -846,7 +867,7 @@ void UpdateGameplayScreen() {
     }
 
     // NOTE: Наверное, оно и не нужно. Всё равно ограничиваем кол-во частиц.
-    if (0)
+#if 0
     {  // Сдвигаем вправо данные частиц, которые "отжили своё время". ("Move Zeros" alg.)
         int left = 0;
 
@@ -873,6 +894,7 @@ void UpdateGameplayScreen() {
         numActiveParticles = left;
         Assert(numActiveParticles <= NUM_PARTICLES);
     }
+#endif
 
 #if 0
     // Сортировка частиц от точки "взора" игрока до них.
@@ -909,13 +931,11 @@ void UpdateGameplayScreen() {
     }
 #endif
 
-    UpdateSSBOAsRingBuffer(
-        gdata.ssbo0, (void*)gdata.positions, sizeof(Vector4), 0, 0, NUM_PARTICLES
-    );
-    UpdateSSBOAsRingBuffer(
+    UpdateSSBO(gdata.ssbo0, (void*)gdata.positions, sizeof(Vector4), 0, 0, NUM_PARTICLES);
+    UpdateSSBO(
         gdata.ssbo1, (void*)gdata.velocities, sizeof(Vector4), 0, 0, NUM_PARTICLES
     );
-    UpdateSSBOAsRingBuffer(
+    UpdateSSBO(
         gdata.ssbo2, (void*)gdata.timesOfCreation, sizeof(float), 0, 0, NUM_PARTICLES
     );
 }
@@ -1090,6 +1110,9 @@ void DrawGameplayScreen() {
         gplayer.lookingDirection.z
     ));
     DebugTextDraw(TextFormat("alive particles count %i", numActiveParticles));
+    DebugTextDraw(TextFormat(
+        "gdata.nextToGenerateParticleIndex %i", gdata.nextToGenerateParticleIndex
+    ));
     // DebugTextDraw(TextFormat("fov %.2f", camera.fovy));
 
     bool isAirborne
@@ -1100,6 +1123,82 @@ void DrawGameplayScreen() {
     ButtonTextDraw("RMB - Dash", &gplayer.buttonDashPressedTime, isAirborne);
     ButtonTextDraw("V - Apply Boost", &gplayer.buttonBoostPressedTime, isAirborne);
     // ButtonTextDraw("F3 - Clear Gizmos", &gplayer.buttonClearPathsPressedTime);
+
+    {  // TODO: remove me
+        static float value = 0;
+
+        int       lastY          = 480;
+        const int w              = 216;
+        const int h              = 16;
+        const int padX           = 96;
+        const int slidersPadding = 10;
+
+        Rectangle rec = {padX, lastY, w, h};
+
+        GuiSlider(
+            rec,
+            TextFormat("amountToGenerate %0.2f", fortesting.amountToGenerate),
+            NULL,
+            &fortesting.amountToGenerate,
+            0.0f,
+            NUM_PARTICLES
+        );
+
+        rec.y += h + slidersPadding;
+
+        GuiSlider(
+            rec,
+            TextFormat("angle %0.2f", fortesting.angle),
+            NULL,
+            &fortesting.angle,
+            0.0f,
+            90.0f
+        );
+
+        rec.y += h + slidersPadding;
+
+        GuiSlider(
+            rec,
+            TextFormat("minVelocity %0.2f", fortesting.minVelocity),
+            NULL,
+            &fortesting.minVelocity,
+            0.0f,
+            10.0f
+        );
+
+        rec.y += h + slidersPadding;
+
+        GuiSlider(
+            rec,
+            TextFormat("maxVelocity %0.2f", fortesting.maxVelocity),
+            NULL,
+            &fortesting.maxVelocity,
+            0.0f,
+            10.0f
+        );
+
+        rec.y += h + slidersPadding;
+
+        GuiSlider(
+            rec,
+            TextFormat("minLivingDuration %0.2f", fortesting.minLivingDuration),
+            NULL,
+            &fortesting.minLivingDuration,
+            0.0f,
+            20.0f
+        );
+
+        rec.y += h + slidersPadding;
+
+        GuiSlider(
+            rec,
+            TextFormat("maxLivingDuration %0.2f", fortesting.maxLivingDuration),
+            NULL,
+            &fortesting.maxLivingDuration,
+            0.0f,
+            20.0f
+        );
+    }
 }
 
 // Gameplay Screen Unload logic.

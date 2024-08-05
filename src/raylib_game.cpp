@@ -8,6 +8,10 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+// #define RAYGUI_IMPLEMENTATION
+// #define RAYGUI_STANDALONE
+// #define RAYGUI_STATIC
+#include "raygui-cpp.h"
 
 #include "doctest.h"
 

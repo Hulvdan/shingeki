@@ -31,6 +31,9 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
     endif()
 endif()
 
+# SHIET REMOVE ME
+add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/libraries/raygui")
+
 #-----------------------------------------------------------------------------------
 # Game.
 #-----------------------------------------------------------------------------------
@@ -46,7 +49,7 @@ add_custom_command(
     DEPENDS ${PROJECT_NAME})
 
 #set(raylib_VERBOSE 1)
-target_link_libraries(${PROJECT_NAME} raylib)
+target_link_libraries(${PROJECT_NAME} raylib raygui_cpp)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     DOCTEST_CONFIG_DISABLE
 )
@@ -85,7 +88,7 @@ set_target_properties(tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
 
 #set(raylib_VERBOSE 1)
-target_link_libraries(tests raylib)
+target_link_libraries(tests raylib raygui_cpp)
 
 # Checks if OSX and links appropriate frameworks (Only required on MacOS)
 if (APPLE)

@@ -1,5 +1,6 @@
 static constexpr int fpsValues[] = {60, 20, 40};
 #include <sstream>
+#include "raygui.h"
 
 //----------------------------------------------------------------------------------
 // Forward declarations.
@@ -473,6 +474,45 @@ PlayerState_Update_Function(Airborne_Update) {
             gplayer.lastDashTime          = GetTime();
             gplayer.buttonDashPressedTime = GetTime();
             PlaySound(gdata.fxDash);
+
+            // Particles.
+            {
+                const float angle = 45.0f * DEG2RAD;
+                auto        v1
+                    = Vector3Normalize(Vector3CrossProduct(gplayer.velocity, Vector3Up));
+
+                // TODO: закинуть частицу в массив.
+                float k = Vector3Length(gplayer.velocity) / gplayer.maxVelocity;
+
+                // int amountToGenerate = MIN(300, NUM_PARTICLES);
+                int amountToGenerate = 300;
+
+                auto t = (float)GetTime();
+
+                FOR_RANGE (int, i, amountToGenerate) {
+                    int ii = gdata.nextToGenerateParticleIndex % NUM_PARTICLES;
+
+                    gdata.positions[ii] = ToVector4(gplayer.position);
+
+                    auto particleVelocity = -Vector3Normalize(gplayer.velocity);
+                    particleVelocity      = Vector3RotateByAxisAngle(
+                        particleVelocity, v1, GetRandomFloat(-angle, angle)
+                    );
+                    particleVelocity = Vector3RotateByAxisAngle(
+                        particleVelocity, gplayer.velocity, GetRandomFloat(0, 2 * PI)
+                    );
+
+                    float scale = 2.2f;
+                    scale *= GetRandomFloat(0.1f, 1.2f);
+
+                    gdata.velocities[ii]      = ToVector4(particleVelocity) * scale;
+                    gdata.timesOfCreation[ii] = t - 10.0f - scale * 2.0f;
+
+                    gdata.nextToGenerateParticleIndex++;
+                    if (gdata.nextToGenerateParticleIndex >= NUM_PARTICLES)
+                        gdata.nextToGenerateParticleIndex -= NUM_PARTICLES;
+                }
+            }
         }
     }
 
@@ -805,6 +845,8 @@ void UpdateGameplayScreen() {
         gdata.positions[i] += gdata.velocities[i] * dt;
     }
 
+    // NOTE: Наверное, оно и не нужно. Всё равно ограничиваем кол-во частиц.
+    if (0)
     {  // Сдвигаем вправо данные частиц, которые "отжили своё время". ("Move Zeros" alg.)
         int left = 0;
 

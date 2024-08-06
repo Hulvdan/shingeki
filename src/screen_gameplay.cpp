@@ -8,11 +8,15 @@ struct PlayerState;
 //----------------------------------------------------------------------------------
 
 const int PARTICLES_PER_SHADER_INSTANCE = 1024;
-const int NUMBER_OF_INSTANCES           = 4;
+const int NUMBER_OF_INSTANCES           = 16;
 const int NUM_PARTICLES = PARTICLES_PER_SHADER_INSTANCE * NUMBER_OF_INSTANCES;
 
 float GetRandomFloat(float from, float to) {
     return from + (to - from) * (float)GetRandomValue(0, INT_MAX) / INT_MAX;
+}
+
+float GetRandomFloat01() {
+    return GetRandomFloat(0, 1);
 }
 
 struct CubeVoxel {
@@ -20,17 +24,18 @@ struct CubeVoxel {
     int        colorIndex;
 };
 
-globalVar struct fortesting_ {
+globalVar struct DashConfig_ {
     float amountToGenerate = 737;
-    float angle            = 16.2f;
+    float minAngle         = 16.2f;
+    float maxAngle         = 16.2f;
 
     float minVelocity       = 0.65f;
     float maxVelocity       = 4.1f;
     float minLivingDuration = 0.9f;
     float maxLivingDuration = 9.9f;
-} fortesting;
+} dashConfig;
 
-globalVar struct gdata_ {
+globalVar struct GData_ {
     int  currentFPSValueIndex = 0;
     bool gizmosEnabled        = true;
 
@@ -69,7 +74,7 @@ globalVar struct gdata_ {
     unsigned int particleVao                 = 0;
 } gdata;
 
-globalVar struct gplayer_ {
+globalVar struct GPlayer_ {
     float   rotationY          = 0;
     float   rotationHorizontal = 0;
     Vector3 lookingDirection   = {};
@@ -113,7 +118,7 @@ globalVar struct gplayer_ {
     inline static const float maxVelocity = 28.0f;
     inline static const float dashImpulse = 200.0f;
 
-    inline static const float particlesAmountPerSecond = 600.0f;
+    inline static const float particlesAmountPerSecond = 800.0f;
 } gplayer;
 
 //----------------------------------------------------------------------------------
@@ -376,38 +381,9 @@ void UpdateSSBO(
     unsigned int ssboID,
     void*        data,
     int          dataElementSize,
-    int          startedIndex,
-    int          updatedElementsCount,
     int          ssboElementsCount
 ) {
-#if 1
     rlUpdateShaderBuffer(ssboID, data, dataElementSize * ssboElementsCount, 0);
-#else
-    int finishedIndex = (startedIndex + updatedElementsCount) % ssboElementsCount;
-
-    if (startedIndex < finishedIndex) {
-        int   offset     = dataElementSize * startedIndex;
-        void* dataOffset = (void*)((char*)data + offset);
-
-        rlUpdateShaderBuffer(
-            ssboID, dataOffset, dataElementSize * updatedElementsCount, offset
-        );
-    }
-    else {
-        int firstUpdate  = ssboElementsCount - startedIndex;
-        int secondUpdate = updatedElementsCount - firstUpdate;
-
-        void* firstDataOffset = (void*)((char*)data + firstUpdate);
-
-        rlUpdateShaderBuffer(
-            ssboID,
-            firstDataOffset,
-            dataElementSize * firstUpdate,
-            dataElementSize * startedIndex
-        );
-        rlUpdateShaderBuffer(ssboID, data, dataElementSize * secondUpdate, 0);
-    }
-#endif
 }
 
 PlayerState_Update_Function(Airborne_Update) {
@@ -486,8 +462,6 @@ PlayerState_Update_Function(Airborne_Update) {
 
             // Particles.
             {
-                const float angle = fortesting.angle * DEG2RAD;
-
                 auto v1
                     = Vector3Normalize(Vector3CrossProduct(gplayer.velocity, Vector3Up));
 
@@ -498,27 +472,28 @@ PlayerState_Update_Function(Airborne_Update) {
 
                 auto time = (float)GetTime();
 
-                FOR_RANGE (int, i, (int)fortesting.amountToGenerate) {
+                FOR_RANGE (int, i, (int)dashConfig.amountToGenerate) {
                     int ii = gdata.nextToGenerateParticleIndex % NUM_PARTICLES;
 
                     gdata.positions[ii] = ToVector4(gplayer.position);
 
+                    auto t2 = GetRandomFloat01() * 2 - 1;
+                    auto a = Lerp(dashConfig.minAngle, dashConfig.maxAngle, t2) * DEG2RAD;
+
                     auto particleVelocity = -Vector3Normalize(gplayer.velocity);
-                    particleVelocity      = Vector3RotateByAxisAngle(
-                        particleVelocity, v1, GetRandomFloat(-angle, angle)
-                    );
+                    particleVelocity = Vector3RotateByAxisAngle(particleVelocity, v1, a);
                     particleVelocity = Vector3RotateByAxisAngle(
                         particleVelocity, gplayer.velocity, GetRandomFloat(0, 2 * PI)
                     );
 
-                    auto t = GetRandomFloat(0.0f, 1.0f);
+                    auto t = GetRandomFloat01();
 
                     auto livingDuration = Lerp(
-                        fortesting.maxLivingDuration, fortesting.minLivingDuration, t
+                        dashConfig.maxLivingDuration, dashConfig.minLivingDuration, t
                     );
 
                     auto v = particleVelocity
-                             * Lerp(fortesting.minVelocity, fortesting.maxVelocity, t);
+                             * Lerp(dashConfig.minVelocity, dashConfig.maxVelocity, t);
                     gdata.velocities[ii] = ToVector4(v);
 
                     auto timeOfCreation       = time - 14 + livingDuration;
@@ -931,13 +906,9 @@ void UpdateGameplayScreen() {
     }
 #endif
 
-    UpdateSSBO(gdata.ssbo0, (void*)gdata.positions, sizeof(Vector4), 0, 0, NUM_PARTICLES);
-    UpdateSSBO(
-        gdata.ssbo1, (void*)gdata.velocities, sizeof(Vector4), 0, 0, NUM_PARTICLES
-    );
-    UpdateSSBO(
-        gdata.ssbo2, (void*)gdata.timesOfCreation, sizeof(float), 0, 0, NUM_PARTICLES
-    );
+    UpdateSSBO(gdata.ssbo0, (void*)gdata.positions, sizeof(Vector4), NUM_PARTICLES);
+    UpdateSSBO(gdata.ssbo1, (void*)gdata.velocities, sizeof(Vector4), NUM_PARTICLES);
+    UpdateSSBO(gdata.ssbo2, (void*)gdata.timesOfCreation, sizeof(float), NUM_PARTICLES);
 }
 
 // Gameplay Screen Draw logic.
@@ -1125,21 +1096,20 @@ void DrawGameplayScreen() {
     // ButtonTextDraw("F3 - Clear Gizmos", &gplayer.buttonClearPathsPressedTime);
 
     {  // TODO: remove me
-        static float value = 0;
+        const float w              = 216.0f;
+        const float h              = 16.0f;
+        const float padX           = 96.0f;
+        const float slidersPadding = 10.0f;
 
-        int       lastY          = 480;
-        const int w              = 216;
-        const int h              = 16;
-        const int padX           = 96;
-        const int slidersPadding = 10;
+        float lastY = 480.0f;
 
         Rectangle rec = {padX, lastY, w, h};
 
         GuiSlider(
             rec,
-            TextFormat("amountToGenerate %0.2f", fortesting.amountToGenerate),
+            TextFormat("amountToGenerate %0.2f", dashConfig.amountToGenerate),
             NULL,
-            &fortesting.amountToGenerate,
+            &dashConfig.amountToGenerate,
             0.0f,
             NUM_PARTICLES
         );
@@ -1148,9 +1118,9 @@ void DrawGameplayScreen() {
 
         GuiSlider(
             rec,
-            TextFormat("angle %0.2f", fortesting.angle),
+            TextFormat("minAngle %0.2f", dashConfig.minAngle),
             NULL,
-            &fortesting.angle,
+            &dashConfig.minAngle,
             0.0f,
             90.0f
         );
@@ -1159,9 +1129,20 @@ void DrawGameplayScreen() {
 
         GuiSlider(
             rec,
-            TextFormat("minVelocity %0.2f", fortesting.minVelocity),
+            TextFormat("maxAngle %0.2f", dashConfig.maxAngle),
             NULL,
-            &fortesting.minVelocity,
+            &dashConfig.maxAngle,
+            0.0f,
+            90.0f
+        );
+
+        rec.y += h + slidersPadding;
+
+        GuiSlider(
+            rec,
+            TextFormat("minVelocity %0.2f", dashConfig.minVelocity),
+            NULL,
+            &dashConfig.minVelocity,
             0.0f,
             10.0f
         );
@@ -1170,9 +1151,9 @@ void DrawGameplayScreen() {
 
         GuiSlider(
             rec,
-            TextFormat("maxVelocity %0.2f", fortesting.maxVelocity),
+            TextFormat("maxVelocity %0.2f", dashConfig.maxVelocity),
             NULL,
-            &fortesting.maxVelocity,
+            &dashConfig.maxVelocity,
             0.0f,
             10.0f
         );
@@ -1181,9 +1162,9 @@ void DrawGameplayScreen() {
 
         GuiSlider(
             rec,
-            TextFormat("minLivingDuration %0.2f", fortesting.minLivingDuration),
+            TextFormat("minLivingDuration %0.2f", dashConfig.minLivingDuration),
             NULL,
-            &fortesting.minLivingDuration,
+            &dashConfig.minLivingDuration,
             0.0f,
             20.0f
         );
@@ -1192,9 +1173,9 @@ void DrawGameplayScreen() {
 
         GuiSlider(
             rec,
-            TextFormat("maxLivingDuration %0.2f", fortesting.maxLivingDuration),
+            TextFormat("maxLivingDuration %0.2f", dashConfig.maxLivingDuration),
             NULL,
-            &fortesting.maxLivingDuration,
+            &dashConfig.maxLivingDuration,
             0.0f,
             20.0f
         );

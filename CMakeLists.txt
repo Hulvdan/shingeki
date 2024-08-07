@@ -37,7 +37,7 @@ add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/libraries/raygui")
 #-----------------------------------------------------------------------------------
 # Game.
 #-----------------------------------------------------------------------------------
-add_executable(${PROJECT_NAME} src/raylib_game.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libraries/doctest")
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

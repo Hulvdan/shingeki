@@ -31,7 +31,6 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
     endif()
 endif()
 
-# SHIET REMOVE ME
 add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/libraries/raygui")
 
 #-----------------------------------------------------------------------------------

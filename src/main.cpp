@@ -34,7 +34,7 @@
 // NOLINTEND(bugprone-suspicious-include)
 
 #if defined(PLATFORM_WEB)
-#include <emscripten/emscripten.h>
+#    include <emscripten/emscripten.h>
 #endif
 
 globalVar float      transAlpha      = 0.0f;
@@ -95,9 +95,9 @@ int main() {
     // InitTitleScreen();
     InitGameplayScreen(arena);
 
-#if defined(PLATFORM_WEB)
+#    if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
-#else
+#    else
     SetTargetFPS(60);  // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
@@ -105,7 +105,7 @@ int main() {
     while (!WindowShouldClose())  // Detect window close button or ESC key
         UpdateDrawFrame(arena);
 
-#endif
+#    endif
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
